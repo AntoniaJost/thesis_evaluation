@@ -1,0 +1,23 @@
+variable: psl
+freq: monthly
+grid: gn
+
+models: ["forced_sst"]  # can list multiple model datasets
+
+time:
+  use_named: null
+  start: "1979-01-01"
+  end: "2024-12-31"
+
+bar_width_days: 25
+figsize: [18, 4]
+
+kde:
+  enabled: true
+  bw_method: scott
+  n_eval: 500
+  pad: 0.5
+
+regions:
+  tahiti: {lat0: -10, lat1: -20, lon0: 200, lon1: 210}
+  darwin: {lat0: -10, lat1: -20, lon0: 130, lon1: 140}

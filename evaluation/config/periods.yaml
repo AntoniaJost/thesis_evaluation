@@ -1,0 +1,6 @@
+named:
+  TRP: {start: "1980-01-01", end: "2014-12-31"}  # training period
+  TSTP: {start: "2015-01-01", end: "2024-12-31"} # testing period
+
+# default global time window if plot doesn’t override
+default: {start: "1980-01-01", end: "2024-12-31"}

@@ -1,0 +1,38 @@
+datasets:
+
+  era5:
+    root: /work/bk1450/a270220/ERA5/regridded_to_1x1
+    pattern: "ERA5_1x1_{var}_1978_2025.nc"
+
+  models:
+    forced_sst:
+      root: /work/bk1450/a270220/cmorised_awm/forced_sst
+      freq_map:
+        monthly: Amon
+        daily: day
+      pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+
+    forced_sst_2k:
+      root: /work/bk1450/a270220/cmorised_awm/forced_sst_2K
+      freq_map: {monthly: Amon, daily: day}
+      pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+
+    forced_sst_4k:
+      root: /work/bk1450/a270220/cmorised_awm/forced_sst_4K
+      freq_map: {monthly: Amon, daily: day}
+      pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+
+    free_run_control:
+      root: /work/bk1450/a270220/cmorised_awm/free_run_control
+      freq_map: {monthly: Amon, daily: day}
+      pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+
+    free_run_prediction:
+      root: /work/bk1450/a270220/cmorised_awm/free_run_prediction
+      freq_map: {monthly: Amon, daily: day}
+      pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"

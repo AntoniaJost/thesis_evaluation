@@ -1,0 +1,26 @@
+defaults:
+  - datasets
+  - variables
+  - periods
+  - plots/soi
+  - _self_
+
+conversions:
+  ta:  {op: "sub", value: 273.15}
+  tas: {op: "sub", value: 273.15}
+  
+# Which plots to produce (list)
+run_plots: ["soi_kde"]  # or ["global_mean", "anomalies", "bias_map", "soi_kde", "location_timeseries"]
+
+# Output behaviour
+out:
+  dir: outputs
+  savefig: true
+  dpi: 150
+
+# General controls
+members: ["member1","member2","member3","member4","member5"]
+include_ensemble_mean_as_member: true   # for bias + ENSO etc.
+
+print_config: false
+

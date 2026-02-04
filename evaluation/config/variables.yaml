@@ -1,0 +1,32 @@
+variables:
+
+  allowed: ["hus","psl","siconc","ta","tas","tos","ua","uas","va","vas","wap","zg"]
+
+  era5_name:
+    hus: q
+    psl: msl
+    siconc: ci
+    ta: t
+    tas: 2t
+    tos: sst
+    ua: u
+    uas: 10u
+    va: v
+    vas: 10v
+    zg: z
+    wap: w
+
+  meta:
+    hus: {long_name: "Specific Humidity", unit: "1"}
+    psl: {long_name: "Mean Sea Level Pressure", unit: "Pa"}
+    siconc: {long_name: "Sea-Ice Area Percentage", unit: "%"}
+    ta:  {long_name: "Air Temperature", unit: "K"}
+    tas: {long_name: "2m Temperature", unit: "K"}
+    ua:  {long_name: "Eastward Wind", unit: "m s-1"}
+    uas: {long_name: "Eastward Near-Surface Wind", unit: "m s-1"}
+    va:  {long_name: "Northward Wind", unit: "m s-1"}
+    vas: {long_name: "Northward Near-Surface Wind", unit: "m s-1"}
+    tos: {long_name: "Sea Surface Temperature", unit: "°C"}   
+    wap: {long_name: "Omega (vertical velocity in pressure coordinates, positive downwards)", unit: "Pa s-1"}
+    zg: {long_name: "Geopotential Height", unit: "m"}
+

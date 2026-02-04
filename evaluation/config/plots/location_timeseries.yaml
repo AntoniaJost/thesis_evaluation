@@ -1,0 +1,19 @@
+variable: tas
+freq: monthly
+grid: gn
+models: ["forced_sst"]
+
+time:
+  use_named: TSTP
+  start: null
+  end: null
+
+location:
+  lat: -0.0
+  lon: 210.0
+
+include_mean_member: true
+
+figsize: [12, 4]
+title: "{var} at location: {model}"
+ylabel: "Value"

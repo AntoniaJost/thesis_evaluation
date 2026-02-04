@@ -1,0 +1,20 @@
+variable: tas
+freq: monthly
+grid: gn
+models: ["forced_sst_2k"]
+
+time:
+  use_named: TRP
+  start: null
+  end: null
+
+title: "{var} trend slope: {model} vs ERA5"
+
+levels_model: [-2, -1.75, -1.5, -1.25, -1, -0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2.0]
+diff_bin: 0.25
+
+figscale_col: 3.8
+figscale_row: 2.8
+
+cbar_label_model: "Trend (per decade)"
+cbar_label_diff: "Model - ERA5 (per decade)"

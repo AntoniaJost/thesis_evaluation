@@ -1,0 +1,23 @@
+# config/plots/global_mean.yaml
+variable: tas
+freq: monthly
+grid: gn
+
+models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"]
+
+era5_offsets_k: [0, 2, 4]
+
+figsize: [11, 5]
+title: "Global Annual Mean Surface Temperature, variable={var}"
+
+unit_out: "°C"
+
+ticks:
+  major: 5
+  minor: 1
+
+legend:
+  loc: "lower right"
+
+colours: ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7"]
+colours_light: ["#56B4E9", "#F0E442", "#7ED1B2", "#F4A582", "#E7B7D4"]
