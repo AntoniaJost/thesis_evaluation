@@ -14,7 +14,7 @@ from evaluation.general_functions import (
     resolve_period,
     open_model_da,
     open_era5_da,
-    ensemble_mean_as_member,
+    # ensemble_mean_as_member,
     conversion_rules,
 )
 
@@ -26,21 +26,78 @@ def lin_reg(x: xr.DataArray):
 
 
 def trend_decay(slope):
-    return round(slope * 10, 3)
+    return round(slope * 10, 3) # °C/decade if slope is °C/year
 
 
 def annual_weighted_mean(da_monthly: xr.DataArray) -> xr.DataArray:
+    # annual mean weighted by days in month (handles leap years).
     days = da_monthly.time.dt.days_in_month
     return (da_monthly * days).resample(time="1YE").sum() / days.resample(time="1YE").sum()
 
 
-def area_weighted_global_mean(da: xr.DataArray, lat_name="lat", lon_name="lon") -> xr.DataArray:
+def area_weighted_global_mean(da: xr.DataArray, lat_name: str = "lat", lon_name: str = "lon") -> xr.DataArray:
     weights = np.cos(np.deg2rad(da[lat_name]))
     return da.weighted(weights).mean(dim=(lon_name, lat_name))
 
 
+# the following function has been written by ChatGPT
+def label_line_along_slope(
+    ax,
+    x,
+    y,
+    text,
+    xpos=0.85,
+    angle_boost=4,
+    xshift=1.2,
+    yshift=-0.1,
+    fontsize=9,
+    color="black",
+    alpha=0.8,
+):
+    """
+    Place a label along a line, rotated to match its slope (with optional boost).
+    """
+    i = int(len(x) * xpos)
+
+    dx = x[i] - x[i - 1]
+    dy = y[i] - y[i - 1]
+
+    angle = np.degrees(np.arctan2(dy, dx)) * angle_boost
+
+    ax.text(
+        x[i] + xshift,
+        y[i] + yshift,
+        text,
+        fontsize=fontsize,
+        color=color,
+        alpha=alpha,
+        rotation=angle,
+        rotation_mode="anchor",
+        ha="left",
+        va="center",
+    )
+
+
+def select_colour(model_name, plot_cfg):
+    return plot_cfg.colours.base_colours[model_name]
+
+
+def select_light_colour(model_name, plot_cfg):
+    return plot_cfg.colours.colours_light[model_name]
+
+
+def model_abbrev(name: str) -> str:
+    return {
+        "forced_sst": "sst0K",
+        "forced_sst_2k": "sst2K",
+        "forced_sst_4k": "sst4K",
+        "free_run_control": "FRc",
+        "free_run_prediction": "FR15",
+    }.get(name, name)
+
+
 def run(cfg):
-    plot_cfg = cfg.plots.global_mean #.metrics.global_mean
+    plot_cfg = cfg.plots.global_mean
     ensure_allowed_var(cfg, plot_cfg.variable)
     start, end = resolve_period(cfg, plot_cfg)
 
@@ -49,28 +106,33 @@ def run(cfg):
     long_name = meta.long_name if meta else var
     unit = meta.unit if meta else ""
 
-    # --- model annual GM per run, per member
+    # --- model annual global mean per run, per member
     models_agm = {}
     for model_name in plot_cfg.models:
         model_cfg = cfg.datasets.models[model_name]
         member_agm = {}
         for m in cfg.members:
             da = open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid)
-            da = conversion_rules(var, da, cfg)
+            da = conversion_rules(var, da, cfg, "model")
             gm = area_weighted_global_mean(da)
             agm = annual_weighted_mean(gm)
             member_agm[m] = agm
         models_agm[model_name] = member_agm
 
-    # --- ERA5 annual GM (with optional offsets)
+    # --- ERA5 annual global mean (with optional offsets)
     era5_da = open_era5_da(cfg, var=var, start=start, end=end)
-    era5_da = conversion_rules(var, era5_da, cfg)
+    era5_da = conversion_rules(var, era5_da, cfg, "era5")
 
     agm_era5_by_offset = {}
     lrg_era5_by_offset = {}
     trend_era5_by_offset = {}
 
-    for offset_k in plot_cfg.era5_offsets_k:
+    offsets = sorted({cfg.datasets.models[m].era5_offset_k for m in plot_cfg.models})
+    # always include baseline ERA5 
+    if 0 not in offsets:
+        offsets = [0] + offsets
+
+    for offset_k in offsets:
         da_off = era5_da + offset_k if offset_k != 0 else era5_da
         gm = area_weighted_global_mean(da_off)
         agm = annual_weighted_mean(gm)
@@ -95,7 +157,7 @@ def run(cfg):
         lrg_mean_ens[model_name] = lrg
         trend_mean_ens[model_name] = trend_decay(slope)
 
-    # --- plotting (kept close to your style; colours from cfg)
+    # --- plotting (colours from cfg)
     fig, ax = plt.subplots(figsize=tuple(plot_cfg.figsize), constrained_layout=True)
 
     # ERA5 (0K) solid + trend dashed
@@ -105,38 +167,40 @@ def run(cfg):
     ax.plot(years_era5, lrg_era5_by_offset[0], color="black", linewidth=1.2, linestyle="--", alpha=0.9, zorder=7)
 
     # extra ERA5 offset trend lines
-    for offset_k in plot_cfg.era5_offsets_k:
+    for offset_k in offsets:
         if offset_k == 0:
             continue
         ax.plot(years_era5, lrg_era5_by_offset[offset_k], color="black",
                 linewidth=1.2, linestyle="--", alpha=0.7, zorder=6)
+        label_line_along_slope(ax, years_era5, lrg_era5_by_offset[offset_k], text=f"ERA5 trend +{offset_k}K", angle_boost=plot_cfg.angle, fontsize=8, alpha=0.7)
 
     # model members thin
     for i, model_name in enumerate(plot_cfg.models):
-        c = plot_cfg.colours[i % len(plot_cfg.colours)]
+        c = select_colour(model_name, plot_cfg)
         for m, da in models_agm[model_name].items():
             years = da.time.dt.year.values
             ax.plot(years, da.values, color=c, alpha=0.18, linewidth=0.9, zorder=2)
 
     # spread + mean + mean trend
     for i, model_name in enumerate(plot_cfg.models):
-        c = plot_cfg.colours[i % len(plot_cfg.colours)]
-        fill = plot_cfg.colours_light[i % len(plot_cfg.colours_light)]
+        c = select_colour(model_name, plot_cfg)
+        fill = select_light_colour(model_name, plot_cfg)
         ds = minmax_ds[model_name]
         years = ds.time.dt.year.values
 
         ax.fill_between(years, ds["min"].values, ds["max"].values,
                         color=fill, alpha=0.30,
-                        label=f"{model_name} spread (Ens. trend: {trend_mean_ens[model_name]} {plot_cfg.unit_out}/decade)",
+                        label=f"{cfg.datasets.models[model_name].proper_name} (Ens. trend: {trend_mean_ens[model_name]} {plot_cfg.unit_out}/decade)",
                         zorder=1)
 
         ax.plot(years, ds["mean"].values, color=c, linewidth=1.2, alpha=0.95, zorder=4)
         ax.plot(years, lrg_mean_ens[model_name], color=c, linewidth=1.0, linestyle="--", zorder=5)
 
-    ax.set_title(plot_cfg.title.format(var=var), pad=10)
+    ax.set_title(f"{plot_cfg.title.format(var=var)}\n({start} – {end})", pad=10)
     ax.set_xlabel("Year")
     ax.set_ylabel(f"{long_name} ({plot_cfg.unit_out})")
 
+    # major ticks every x years, minor every y year
     ax.xaxis.set_major_locator(mticker.MultipleLocator(plot_cfg.ticks.major))
     ax.xaxis.set_minor_locator(mticker.MultipleLocator(plot_cfg.ticks.minor))
     ax.grid(True, which="major", linewidth=0.8, alpha=0.35)
@@ -144,10 +208,10 @@ def run(cfg):
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.margins(x=0.01)
+    ax.margins(x=0.01) # slight margin so traces don't touch frame
 
     ax.legend(loc=plot_cfg.legend.loc, frameon=False, fontsize="x-small", borderaxespad=0.0)
-    # plt.show()
+
     if cfg.out.savefig:
         outdir = os.path.join(
             hydra.utils.get_original_cwd(),
@@ -155,7 +219,10 @@ def run(cfg):
         )
         os.makedirs(outdir, exist_ok=True)
 
-        fname = "gmst.png"
+        model_tags = "_".join(model_abbrev(m) for m in plot_cfg.models)
+        start_tag = start.replace("-", "")
+        end_tag = end.replace("-", "")
+        fname = f"gmst_{model_tags}_{start_tag}-{end_tag}.png"
         fig.savefig(
             os.path.join(outdir, fname),
             dpi=cfg.out.dpi,

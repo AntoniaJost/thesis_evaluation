@@ -2,13 +2,11 @@
 variable: tas
 freq: monthly
 grid: gn
-models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"]
+models: ["free_run_control", "free_run_prediction"] #, "forced_sst", "forced_sst_2k", "forced_sst_4k"]
 time:
   use_named: null
   start: "1979-01-01"
   end: "2024-12-31"
-
-era5_offsets_k: [0, 2, 4]
 
 figsize: [11, 5]
 title: "Global Annual Mean Surface Temperature, variable={var}"
@@ -19,8 +17,23 @@ ticks:
   major: 5
   minor: 1
 
+angle: 4 # angle of the "ERA5 trend +xK" label
+
 legend:
   loc: "lower right"
 
-colours: ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7"]
-colours_light: ["#56B4E9", "#F0E442", "#7ED1B2", "#F4A582", "#E7B7D4"]
+# colour-blind / red-green blind friendly colours
+colours:
+  base_colours:
+    forced_sst:      "#0072B2"  # blue
+    forced_sst_2k:   "#E69F00"  # orange
+    forced_sst_4k:   "#009E73"  # green
+    free_run_control: "#D55E00"  # vermillion
+    free_run_prediction: "#CC79A7"  # purple
+
+  colours_light:
+    forced_sst:      "#56B4E9"
+    forced_sst_2k:   "#F0E442"
+    forced_sst_4k:   "#7ED1B2"
+    free_run_control: "#F4A582"
+    free_run_prediction: "#E7B7D4"

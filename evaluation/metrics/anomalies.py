@@ -32,7 +32,7 @@ def run(cfg):
     var = plot_cfg.variable
 
     # compute ERA5 annual GM
-    era5_da = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg)
+    era5_da = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg, "era5")
     gm_era5 = area_weighted_global_mean(era5_da)
     agm_era5 = annual_weighted_mean(gm_era5)
 
@@ -53,7 +53,7 @@ def run(cfg):
         model_cfg = cfg.datasets.models[model_name]
         member_anom = {}
         for m in cfg.members:
-            da = conversion_rules(var, open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid), cfg)
+            da = conversion_rules(var, open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid), cfg, "model")
             gm = area_weighted_global_mean(da)
             agm = annual_weighted_mean(gm)
             anom, _ = to_anomaly(agm, base_start, base_end)

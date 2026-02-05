@@ -61,7 +61,7 @@ def run(cfg):
     var = plot_cfg.variable
 
     # ERA5 slope
-    da_era5 = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg)
+    da_era5 = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg, "era5")
     era5_slope = compute_slope_per_gridpoint(da_era5) * 10.0  # per decade
 
     for model_name in plot_cfg.models:
@@ -74,7 +74,8 @@ def run(cfg):
             da_model = conversion_rules(
                 var,
                 open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid),
-                cfg
+                cfg,
+                "model"
             )
             s = compute_slope_per_gridpoint(da_model) * 10.0
             model_slope[m] = s

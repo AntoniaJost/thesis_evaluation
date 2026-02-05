@@ -24,7 +24,7 @@ def run(cfg):
     var = plot_cfg.variable
 
     # ERA5
-    era5_da = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg)
+    era5_da = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg, "era5")
     era5_point = era5_da.sel(lat=plot_cfg.location.lat, lon=plot_cfg.location.lon, method="nearest")
 
     for model_name in plot_cfg.models:
@@ -32,7 +32,7 @@ def run(cfg):
 
         members = {}
         for m in cfg.members:
-            da = conversion_rules(var, open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid), cfg)
+            da = conversion_rules(var, open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid), cfg, "model")
             members[m] = da.sel(lat=plot_cfg.location.lat, lon=plot_cfg.location.lon, method="nearest")
 
         if cfg.include_ensemble_mean_as_member and plot_cfg.include_mean_member:

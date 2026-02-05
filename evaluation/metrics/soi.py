@@ -83,7 +83,7 @@ def run(cfg):
 
     # --- load ERA5
     da_era5 = open_era5_da(cfg, var=plot_cfg.variable, start=start, end=end)
-    da_era5 = conversion_rules(plot_cfg.variable, da_era5, cfg)
+    da_era5 = conversion_rules(plot_cfg.variable, da_era5, cfg, "era5")
     era5_ds = da_era5.to_dataset(name=cfg.variables.era5_name[plot_cfg.variable])  # keep var name accessible
     era5_slp_var = plot_cfg.get("era5_var_override", None) or cfg.variables.era5_name[plot_cfg.variable]
     soi_era5 = calc_soi(
@@ -111,7 +111,7 @@ def run(cfg):
                 end=end,
                 grid=plot_cfg.get("grid", "gn"),
             )
-            da_model = conversion_rules(plot_cfg.variable, da_model, cfg)
+            da_model = conversion_rules(plot_cfg.variable, da_model, cfg, "model")
             ds_model = da_model.to_dataset(name=plot_cfg.variable)
             soi_members[m] = calc_soi(
                 ds_model, start=start[:7], end=end[:7],

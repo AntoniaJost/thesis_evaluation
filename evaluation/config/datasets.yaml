@@ -8,36 +8,29 @@ datasets:
     forced_sst:
       root: /work/bk1450/a270220/cmorised_awm/forced_sst
       modelname: AWGsst0K
-      # freq_map:
-      #   monthly: Amon
-      #   daily: day
-      # pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
-      # pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      proper_name: AW-Gen
+      era5_offset_k: 0
 
     forced_sst_2k:
       root: /work/bk1450/a270220/cmorised_awm/forced_sst_2K
       modelname: AWGsst2K
-      # freq_map: {monthly: Amon, daily: day}
-      # pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
-      # pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      proper_name: AW-Gen +2K
+      era5_offset_k: 2
 
     forced_sst_4k:
       root: /work/bk1450/a270220/cmorised_awm/forced_sst_4K
-      modelname: AWGsst2K
-      # freq_map: {monthly: Amon, daily: day}
-      # pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
-      # pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      modelname: AWGsst4K
+      proper_name: AW-Gen +4K
+      era5_offset_k: 4
 
     free_run_control:
       modelname: AWGfrc
       root: /work/bk1450/a270220/cmorised_awm/free_run_control
-      # freq_map: {monthly: Amon, daily: day}
-      # pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
-      # pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      proper_name: AW-Gen free-run
+      era5_offset_k: 0
 
     free_run_prediction:
       modelname: AWGfr15
       root: /work/bk1450/a270220/cmorised_awm/free_run_prediction
-      # freq_map: {monthly: Amon, daily: day}
-      # pattern_monthly: "{var}_Amon_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
-      # pattern_daily:   "{var}_day_ArchesWeatherGen_aimip_r*i1p1f1_gn_*.nc"
+      proper_name: AW-Gen free-run
+      era5_offset_k: 0
