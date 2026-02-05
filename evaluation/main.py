@@ -14,11 +14,6 @@ REGISTRY = {
 
 @hydra.main(config_path="config", config_name="config", version_base="1.3")
 def main(cfg: DictConfig):
-    # for name in cfg.run_plots:
-    #     if name not in REGISTRY:
-    #         raise KeyError(f"Unknown plot '{name}'. Available: {list(REGISTRY.keys())}")
-    #     REGISTRY[name](cfg)
-    # print(OmegaConf.to_yaml(cfg))
     if cfg.get("print_config", False):
         print(OmegaConf.to_yaml(cfg))
 

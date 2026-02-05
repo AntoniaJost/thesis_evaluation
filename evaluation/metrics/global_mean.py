@@ -6,14 +6,16 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from scipy import stats
+import os
+import hydra
 
-from evaluation.io import (
+from evaluation.general_functions import (
     ensure_allowed_var,
     resolve_period,
     open_model_da,
     open_era5_da,
     ensemble_mean_as_member,
-    maybe_convert_units,
+    conversion_rules,
 )
 
 
@@ -38,7 +40,7 @@ def area_weighted_global_mean(da: xr.DataArray, lat_name="lat", lon_name="lon") 
 
 
 def run(cfg):
-    plot_cfg = cfg.plots #.metrics.global_mean
+    plot_cfg = cfg.plots.global_mean #.metrics.global_mean
     ensure_allowed_var(cfg, plot_cfg.variable)
     start, end = resolve_period(cfg, plot_cfg)
 
@@ -53,8 +55,8 @@ def run(cfg):
         model_cfg = cfg.datasets.models[model_name]
         member_agm = {}
         for m in cfg.members:
-            da = open_model_da(model_cfg, m, var, plot_cfg.freq, start, end, grid=plot_cfg.grid)
-            da = maybe_convert_units(var, da, cfg)
+            da = open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid)
+            da = conversion_rules(var, da, cfg)
             gm = area_weighted_global_mean(da)
             agm = annual_weighted_mean(gm)
             member_agm[m] = agm
@@ -62,7 +64,7 @@ def run(cfg):
 
     # --- ERA5 annual GM (with optional offsets)
     era5_da = open_era5_da(cfg, var=var, start=start, end=end)
-    era5_da = maybe_convert_units(var, era5_da, cfg)
+    era5_da = conversion_rules(var, era5_da, cfg)
 
     agm_era5_by_offset = {}
     lrg_era5_by_offset = {}
@@ -145,4 +147,20 @@ def run(cfg):
     ax.margins(x=0.01)
 
     ax.legend(loc=plot_cfg.legend.loc, frameon=False, fontsize="x-small", borderaxespad=0.0)
-    plt.show()
+    # plt.show()
+    if cfg.out.savefig:
+        outdir = os.path.join(
+            hydra.utils.get_original_cwd(),
+            cfg.out.dir
+        )
+        os.makedirs(outdir, exist_ok=True)
+
+        fname = "gmst.png"
+        fig.savefig(
+            os.path.join(outdir, fname),
+            dpi=cfg.out.dpi,
+            bbox_inches="tight"
+        )
+        plt.close(fig)
+    else:
+        plt.show()

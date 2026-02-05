@@ -6,8 +6,10 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from scipy import stats
+import os
+import hydra
 
-from evaluation.io import ensure_allowed_var, resolve_period
+from evaluation.general_functions import ensure_allowed_var, resolve_period
 from evaluation.metrics.global_mean import run as run_global_mean  # optional reuse
 from evaluation.metrics.global_mean import lin_reg, trend_decay
 
@@ -18,19 +20,19 @@ def to_anomaly(da: xr.DataArray, baseline_start: str, baseline_end: str):
 
 
 def run(cfg):
-    plot_cfg = cfg.plots #.metrics.anomalies
+    plot_cfg = cfg.plots.anomalies #.metrics.anomalies
     ensure_allowed_var(cfg, plot_cfg.variable)
 
     # We expect global_mean plot config already describes models/freq/etc.
     # To keep minimal changes, we replicate the relevant compute logic from global_mean.
     from evaluation.metrics.global_mean import annual_weighted_mean, area_weighted_global_mean
-    from evaluation.io import open_model_da, open_era5_da, maybe_convert_units
+    from evaluation.general_functions import open_model_da, open_era5_da, conversion_rules
 
     start, end = resolve_period(cfg, plot_cfg)
     var = plot_cfg.variable
 
     # compute ERA5 annual GM
-    era5_da = maybe_convert_units(var, open_era5_da(cfg, var, start, end), cfg)
+    era5_da = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg)
     gm_era5 = area_weighted_global_mean(era5_da)
     agm_era5 = annual_weighted_mean(gm_era5)
 
@@ -51,7 +53,7 @@ def run(cfg):
         model_cfg = cfg.datasets.models[model_name]
         member_anom = {}
         for m in cfg.members:
-            da = maybe_convert_units(var, open_model_da(model_cfg, m, var, plot_cfg.freq, start, end, grid=plot_cfg.grid), cfg)
+            da = conversion_rules(var, open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid), cfg)
             gm = area_weighted_global_mean(da)
             agm = annual_weighted_mean(gm)
             anom, _ = to_anomaly(agm, base_start, base_end)
@@ -111,4 +113,20 @@ def run(cfg):
     ax.margins(x=0.01)
 
     ax.legend(loc=plot_cfg.legend.loc, fontsize=9, frameon=False, handlelength=2.6, borderaxespad=0.6)
-    plt.show()
+    # plt.show()
+    if cfg.out.savefig:
+        outdir = os.path.join(
+            hydra.utils.get_original_cwd(),
+            cfg.out.dir
+        )
+        os.makedirs(outdir, exist_ok=True)
+
+        fname = "anomalies.png"
+        fig.savefig(
+            os.path.join(outdir, fname),
+            dpi=cfg.out.dpi,
+            bbox_inches="tight"
+        )
+        plt.close(fig)
+    else:
+        plt.show()

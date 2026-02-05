@@ -1,9 +1,7 @@
 variable: psl
 freq: monthly
 grid: gn
-
 models: ["forced_sst"]  # can list multiple model datasets
-
 time:
   use_named: null
   start: "1979-01-01"

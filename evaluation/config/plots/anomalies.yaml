@@ -1,7 +1,11 @@
 variable: tas
-freq: monthly
+freq: monthly # or daily
 grid: gn
 models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"]
+time:
+  use_named: null
+  start: "1979-01-01"
+  end: "2024-12-31"
 
 baseline:
   start: "1980-01-01"
@@ -21,3 +25,5 @@ legend:
 
 colours: ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7"]
 colours_light: ["#56B4E9", "#F0E442", "#7ED1B2", "#F4A582", "#E7B7D4"]
+
+

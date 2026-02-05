@@ -9,15 +9,17 @@ import matplotlib.colors as mcolors
 from matplotlib import cm
 import matplotlib as mpl
 import cartopy.crs as ccrs
+import os
+import hydra
 from cartopy.util import add_cyclic_point
 
-from evaluation.io import (
+from evaluation.general_functions import (
     ensure_allowed_var,
     resolve_period,
     open_model_da,
     open_era5_da,
     ensemble_mean_as_member,
-    maybe_convert_units,
+    conversion_rules,
 )
 
 
@@ -52,14 +54,14 @@ def plot_map(ax, ds: xr.DataArray, title: str, levels, norm, cmap="RdBu_r"):
 
 
 def run(cfg):
-    plot_cfg = cfg.plots #.metrics.bias_map
+    plot_cfg = cfg.plots.bias_map #.metrics.bias_map
     ensure_allowed_var(cfg, plot_cfg.variable)
 
     start, end = resolve_period(cfg, plot_cfg)
     var = plot_cfg.variable
 
     # ERA5 slope
-    da_era5 = maybe_convert_units(var, open_era5_da(cfg, var, start, end), cfg)
+    da_era5 = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg)
     era5_slope = compute_slope_per_gridpoint(da_era5) * 10.0  # per decade
 
     for model_name in plot_cfg.models:
@@ -69,9 +71,9 @@ def run(cfg):
         bias_slope = {}
 
         for m in cfg.members:
-            da_model = maybe_convert_units(
+            da_model = conversion_rules(
                 var,
-                open_model_da(model_cfg, m, var, plot_cfg.freq, start, end, grid=plot_cfg.grid),
+                open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid),
                 cfg
             )
             s = compute_slope_per_gridpoint(da_model) * 10.0
@@ -134,4 +136,20 @@ def run(cfg):
                              shrink=0.7, pad=0.02, spacing="proportional")
         cbar2.set_label(plot_cfg.cbar_label_diff)
 
-        plt.show()
+        # plt.show()
+        if cfg.out.savefig:
+            outdir = os.path.join(
+                hydra.utils.get_original_cwd(),
+                cfg.out.dir
+            )
+            os.makedirs(outdir, exist_ok=True)
+
+            fname = "bias_map.png"
+            fig.savefig(
+                os.path.join(outdir, fname),
+                dpi=cfg.out.dpi,
+                bbox_inches="tight"
+            )
+            plt.close(fig)
+        else:
+            plt.show()

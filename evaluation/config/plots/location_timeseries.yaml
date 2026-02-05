@@ -2,7 +2,6 @@ variable: tas
 freq: monthly
 grid: gn
 models: ["forced_sst"]
-
 time:
   use_named: TSTP
   start: null

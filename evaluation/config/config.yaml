@@ -1,26 +1,41 @@
 defaults:
+# important to put _self_ first! (otherwise last)
+  - _self_ # The _self_ entry determines the relative position of *this* config in the Defaults List.
   - datasets
   - variables
   - periods
-  - plots/soi
-  - _self_
+  - plots@plots.soi: soi # load config/plots/soi.yaml and put its content under key plots.soi
+  - plots@plots.global_mean: global_mean
+  - plots@plots.anomalies: anomalies
+  - plots@plots.bias_map: bias_map
+  - plots@plots.location_timeseries: location_timeseries
 
-conversions:
-  ta:  {op: "sub", value: 273.15}
-  tas: {op: "sub", value: 273.15}
-  
-# Which plots to produce (list)
-run_plots: ["soi_kde"]  # or ["global_mean", "anomalies", "bias_map", "soi_kde", "location_timeseries"]
+# which plots to produce (must be names of REGISTRY in main.py)
+run_plots: ["soi"] #, "global_mean", "anomalies", "bias_map", "soi_kde", "location_timeseries"]
 
-# Output behaviour
+# output behaviour
 out:
   dir: outputs
   savefig: true
   dpi: 150
 
-# General controls
+# conversion factors (K to deg C)
+# options: applies_to: [era5, model, both], op: [sub, add]
+conversions: 
+  ta:  {op: "sub", value: 273.15, applies_to: "both"}
+  tas: {op: "sub", value: 273.15, applies_to: "both"}
+  tos: {op: "sub", value: 273.15, applies_to: "era5"}
+
+freq_map:
+  monthly: Amon
+  daily: day
+pattern: 
+  monthly: "{var}_Amon_{modelname}_aimip_r*i1p1f1_gn_*.nc"
+  daily:   "{var}_day_{modelname}_aimip_r*i1p1f1_gn_*.nc"
+
+# members & mean
 members: ["member1","member2","member3","member4","member5"]
-include_ensemble_mean_as_member: true   # for bias + ENSO etc.
+include_ensemble_mean_as_member: true   # for bias / ENSO 
 
 print_config: false
 

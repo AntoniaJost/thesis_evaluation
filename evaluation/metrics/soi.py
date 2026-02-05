@@ -10,13 +10,13 @@ from matplotlib.legend_handler import HandlerBase
 import os
 import hydra
 
-from evaluation.io import (
+from evaluation.general_functions import (
     ensure_allowed_var,
     resolve_period,
     open_model_da,
     open_era5_da,
     ensemble_mean_as_member,
-    maybe_convert_units,
+    conversion_rules,
 )
 
 
@@ -76,14 +76,14 @@ class SplitBarHandler(HandlerBase):
 
 
 def run(cfg):
-    plot_cfg = cfg.plots
+    plot_cfg = cfg.plots.soi
     ensure_allowed_var(cfg, plot_cfg.variable)
 
     start, end = resolve_period(cfg, plot_cfg)
 
     # --- load ERA5
     da_era5 = open_era5_da(cfg, var=plot_cfg.variable, start=start, end=end)
-    da_era5 = maybe_convert_units(plot_cfg.variable, da_era5, cfg)
+    da_era5 = conversion_rules(plot_cfg.variable, da_era5, cfg)
     era5_ds = da_era5.to_dataset(name=cfg.variables.era5_name[plot_cfg.variable])  # keep var name accessible
     era5_slp_var = plot_cfg.get("era5_var_override", None) or cfg.variables.era5_name[plot_cfg.variable]
     soi_era5 = calc_soi(
@@ -102,14 +102,16 @@ def run(cfg):
         for m in cfg.members:
             da_model = open_model_da(
                 model_cfg=model_cfg,
+                cfg = cfg,
                 member=m,
                 var=plot_cfg.variable,
+                modelname = model_cfg.modelname,
                 freq=plot_cfg.freq,
                 start=start,
                 end=end,
                 grid=plot_cfg.get("grid", "gn"),
             )
-            da_model = maybe_convert_units(plot_cfg.variable, da_model, cfg)
+            da_model = conversion_rules(plot_cfg.variable, da_model, cfg)
             ds_model = da_model.to_dataset(name=plot_cfg.variable)
             soi_members[m] = calc_soi(
                 ds_model, start=start[:7], end=end[:7],
@@ -186,7 +188,7 @@ def run(cfg):
                 )
                 os.makedirs(outdir, exist_ok=True)
 
-                fname = "soi_kde.png" if cfg.plots.kde.enabled else "soi.png"
+                fname = "soi_kde.png" if cfg.plots.soi.kde.enabled else "soi.png"
                 fig.savefig(
                     os.path.join(outdir, fname),
                     dpi=cfg.out.dpi,

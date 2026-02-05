@@ -2,8 +2,11 @@
 variable: tas
 freq: monthly
 grid: gn
-
 models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"]
+time:
+  use_named: null
+  start: "1979-01-01"
+  end: "2024-12-31"
 
 era5_offsets_k: [0, 2, 4]
 
