@@ -113,7 +113,7 @@ def run(cfg):
         member_agm = {}
         for m in cfg.members:
             da = open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid)
-            da = conversion_rules(var, da, cfg, "model")
+            da, _ = conversion_rules(var, da, cfg, "model", unit)
             gm = area_weighted_global_mean(da)
             agm = annual_weighted_mean(gm)
             member_agm[m] = agm
@@ -121,7 +121,7 @@ def run(cfg):
 
     # --- ERA5 annual global mean (with optional offsets)
     era5_da = open_era5_da(cfg, var=var, start=start, end=end)
-    era5_da = conversion_rules(var, era5_da, cfg, "era5")
+    era5_da, unit = conversion_rules(var, era5_da, cfg, "era5", unit)
 
     agm_era5_by_offset = {}
     lrg_era5_by_offset = {}
@@ -163,16 +163,17 @@ def run(cfg):
     # ERA5 (0K) solid + trend dashed
     years_era5 = agm_era5_by_offset[0].time.dt.year.values
     ax.plot(years_era5, agm_era5_by_offset[0].values, color="black", linewidth=1.5,
-            label=f"ERA5 (Trend: {trend_era5_by_offset[0]} {plot_cfg.unit_out}/decade)", zorder=5)
+            label=f"ERA5 (Trend: {trend_era5_by_offset[0]} {unit}/decade)", zorder=5)
     ax.plot(years_era5, lrg_era5_by_offset[0], color="black", linewidth=1.2, linestyle="--", alpha=0.9, zorder=7)
 
     # extra ERA5 offset trend lines
-    for offset_k in offsets:
-        if offset_k == 0:
-            continue
-        ax.plot(years_era5, lrg_era5_by_offset[offset_k], color="black",
-                linewidth=1.2, linestyle="--", alpha=0.7, zorder=6)
-        label_line_along_slope(ax, years_era5, lrg_era5_by_offset[offset_k], text=f"ERA5 trend +{offset_k}K", angle_boost=plot_cfg.angle, fontsize=8, alpha=0.7)
+    if plot_cfg.show_era5_offset_trends:
+        for offset_k in offsets:
+            if offset_k == 0:
+                continue
+            ax.plot(years_era5, lrg_era5_by_offset[offset_k], color="black",
+                    linewidth=1.2, linestyle="--", alpha=0.7, zorder=6)
+            label_line_along_slope(ax, years_era5, lrg_era5_by_offset[offset_k], text=f"ERA5 trend +{offset_k}K", angle_boost=plot_cfg.angle, fontsize=8, alpha=0.7)
 
     # model members thin
     for i, model_name in enumerate(plot_cfg.models):
@@ -190,7 +191,7 @@ def run(cfg):
 
         ax.fill_between(years, ds["min"].values, ds["max"].values,
                         color=fill, alpha=0.30,
-                        label=f"{cfg.datasets.models[model_name].proper_name} (Ens. trend: {trend_mean_ens[model_name]} {plot_cfg.unit_out}/decade)",
+                        label=f"{cfg.datasets.models[model_name].proper_name} (Ens. trend: {trend_mean_ens[model_name]} {unit}/decade)",
                         zorder=1)
 
         ax.plot(years, ds["mean"].values, color=c, linewidth=1.2, alpha=0.95, zorder=4)
@@ -198,7 +199,7 @@ def run(cfg):
 
     ax.set_title(f"{plot_cfg.title.format(var=var)}\n({start} – {end})", pad=10)
     ax.set_xlabel("Year")
-    ax.set_ylabel(f"{long_name} ({plot_cfg.unit_out})")
+    ax.set_ylabel(f"{long_name} ({unit})")
 
     # major ticks every x years, minor every y year
     ax.xaxis.set_major_locator(mticker.MultipleLocator(plot_cfg.ticks.major))
@@ -222,7 +223,7 @@ def run(cfg):
         model_tags = "_".join(model_abbrev(m) for m in plot_cfg.models)
         start_tag = start.replace("-", "")
         end_tag = end.replace("-", "")
-        fname = f"gmst_{model_tags}_{start_tag}-{end_tag}.png"
+        fname = f"{var}_{model_tags}_{start_tag}-{end_tag}.png"
         fig.savefig(
             os.path.join(outdir, fname),
             dpi=cfg.out.dpi,

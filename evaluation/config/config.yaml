@@ -19,12 +19,13 @@ out:
   savefig: true
   dpi: 150
 
-# conversion factors (K to deg C)
-# options: applies_to: [era5, model, both], op: [sub, add]
+# conversion factors (K to deg C, scalar to percent)
+# options: applies_to: [era5, model, both], op: [sub, add, mul, div]
 conversions: 
-  ta:  {op: "sub", value: 273.15, applies_to: "both"}
-  tas: {op: "sub", value: 273.15, applies_to: "both"}
-  tos: {op: "sub", value: 273.15, applies_to: "era5"}
+  ta:  {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}
+  tas: {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}
+  tos: {op: "sub", value: 273.15, applies_to: "era5", unit: "°C"}  
+  siconc: {op: "mul", value: 100, applies_to: "era5", unit: "%"}
 
 freq_map:
   monthly: Amon

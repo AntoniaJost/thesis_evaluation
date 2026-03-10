@@ -2,7 +2,7 @@
 variable: tas
 freq: monthly
 grid: gn
-models: ["free_run_control", "free_run_prediction"] #, "forced_sst", "forced_sst_2k", "forced_sst_4k"]
+models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"] #["free_run_control", "free_run_prediction", 
 time:
   use_named: null
   start: "1979-01-01"
@@ -11,7 +11,9 @@ time:
 figsize: [11, 5]
 title: "Global Annual Mean Surface Temperature, variable={var}"
 
-unit_out: "°C"
+show_era5_offset_trends: true
+
+# unit_out: "°C"
 
 ticks:
   major: 5

@@ -86,7 +86,8 @@ def open_era5_da(cfg, var: str, start: str, end: str) -> xr.DataArray:
     era5_var = cfg.variables.era5_name[var]
     root = cfg.datasets.era5.root
     pattern = cfg.datasets.era5.pattern
-    path = f"{root}/{pattern.format(var=var)}"
+    file_var = "ci" if var == "siconc" else var # handle case of sea ice conc., which uses other variable from era5 (ci, instead of siconc)
+    path = f"{root}/{pattern.format(var=file_var)}"
 
     ds = xr.open_dataset(path).sel(time=slice(start, end))
 
@@ -99,17 +100,18 @@ def open_era5_da(cfg, var: str, start: str, end: str) -> xr.DataArray:
     return ds[era5_var]
 
 
-def conversion_rules(var: str, da: xr.DataArray, cfg, source: str) -> xr.DataArray:
+def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default: str = "") -> tuple[xr.DataArray, str]:
     """
-    convert units if entry in config.yaml available
-    currently only K <-> °C
+    convert units if entry in config.yaml available, updates unit string
+    K <-> °C, scalar to percent
     needed for:
       - ta & tas
       - tos from ERA5
+      - ci from ERA5
     """
     rule = cfg.conversions.get(var, None) if hasattr(cfg, "conversions") else None
     if rule is None:
-        return da
+        return da, unit_default
 
     # make sure tos only gets converted for era5
     applies_to = getattr(rule, "applies_to", "both") # default "both"
@@ -118,14 +120,20 @@ def conversion_rules(var: str, da: xr.DataArray, cfg, source: str) -> xr.DataArr
     # case tas_ERA5: applies_to = 'both' and source='model' -> 'both' != 'both' (FALSE) and 'both' !='era5' (TRUE) -> FALSE (continues)
     # case tas_MODEL: applies_to = 'both' and source='era5' -> 'both' != 'both' (FALSE) and 'both' !='model' (TRUE) -> FALSE (continues)
     if applies_to != "both" and applies_to != source:
-        return da
+        return da, unit_default
+    
+    unit = getattr(rule, "unit", unit_default)
     
     op = rule.op
     val = float(rule.value)
     if op == "sub":
-        return da - val
+        return da - val, unit
     if op == "add":
-        return da + val
+        return da + val, unit
+    if op == "mul":
+        return da * val, unit
+    if op == "div":
+        return da / val, unit
     raise ValueError(f"Unknown conversion op: {op}")
 
 
