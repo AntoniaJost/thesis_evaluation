@@ -7,6 +7,16 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import xarray as xr
+import os
+
+
+def normalise_list(value):
+    """
+    convert string or list-like config entry into a list
+    """
+    if isinstance(value, (list, tuple, ListConfig)):
+        return list(value)
+    return [value]
 
 
 def resolve_period(cfg, plot_cfg) -> Tuple[str, str]:
@@ -271,3 +281,52 @@ def ensure_allowed_var(cfg, var: str):
     allowed = list(cfg.variables.allowed)
     if var not in allowed:
         raise ValueError(f"Variable '{var}' not in allowed list: {allowed}")
+
+
+def normalise_overwrite_mode(mode) -> str:
+    """
+    normalise overwrite mode from config
+    allowed only these values: 'ask', 'true', 'false'
+    """
+    if isinstance(mode, bool):
+        return "true" if mode else "false"
+
+    if mode is None:
+        return "ask"
+
+    mode = str(mode).strip().lower()
+    if mode in ("ask", "true", "false"):
+        return mode
+
+    raise ValueError(
+        f"Unknown cfg.out.overwrite value: {mode}. "
+        f"Use one of: ask, true, false"
+    )
+
+
+def should_compute_output(outfile: str, overwrite_mode) -> bool:
+    """
+    decide whether computation should proceed for a target output file
+    - true  -> always recompute / overwrite
+    - false -> skip if file exists
+    - ask   -> prompt user if file exists
+    """
+    mode = normalise_overwrite_mode(overwrite_mode)
+    outfile_name = os.path.basename(outfile)
+
+    if not os.path.exists(outfile):
+        return True
+
+    if mode == "true":
+        return True
+
+    if mode == "false":
+        print(f"Skipping existing file: {outfile}")
+        return False
+
+    answer = input(f"{outfile} already exists. Recompute and overwrite? [y/n]: ").strip().lower()
+    if answer in ("y", "yes"):
+        return True
+
+    print(f"Skipping existing file: {outfile_name}")
+    return False

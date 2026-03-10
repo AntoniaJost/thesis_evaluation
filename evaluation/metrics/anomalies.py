@@ -16,6 +16,7 @@ from evaluation.general_functions import (
     open_model_da,
     open_era5_da,
     conversion_rules,
+    should_compute_output,
 )
 
 from evaluation.metrics.global_mean import (
@@ -70,6 +71,30 @@ def run(cfg):
         plevs = plevs_for_variable(da_sample, requested_plevs)
 
         for plev in plevs:
+            # check if file already exists and if recomputation is wanted
+            plev_title = ""
+            plev_tag = ""
+            if plev is not None:
+                plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
+                plev_hpa = int(plev_pa / 100)
+                plev_title = f" at {plev_hpa} hPa"
+                plev_tag = f"@{plev_hpa}hPa"
+
+            outdir = os.path.join(
+                hydra.utils.get_original_cwd(),
+                cfg.out.dir,
+                "anomalies"
+            )
+            os.makedirs(outdir, exist_ok=True)
+
+            model_tags = "_".join(model_abbrev(m) for m in plot_cfg.models)
+            start_tag = start.replace("-", "")
+            end_tag = end.replace("-", "")
+            fname = f"anomalies_{var}{plev_tag}_{model_tags}_{start_tag}-{end_tag}.png"
+            outfile = os.path.join(outdir, fname)
+            if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
+                continue
+
             unit_here = unit
             # compute ERA5 annual GM
             era5_da = open_era5_da(cfg, var=var, start=start, end=end, plev=plev)
@@ -141,14 +166,6 @@ def run(cfg):
 
             ax.axhline(0, color="0.3", linewidth=1.0, alpha=0.35)
 
-            plev_title = ""
-            plev_tag = ""
-            if plev is not None:
-                plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
-                plev_hpa = int(plev_pa / 100)
-                plev_title = f" at {plev_hpa} hPa"
-                plev_tag = f"@{plev_hpa}hPa"
-
             if plot_cfg.title:
                 title = plot_cfg.title.format(
                     var=var,
@@ -175,16 +192,6 @@ def run(cfg):
             ax.legend(loc=plot_cfg.legend.loc, fontsize="x-small", frameon=False, handlelength=2.6, borderaxespad=0.6)
             # plt.show()
             if cfg.out.savefig:
-                outdir = os.path.join(
-                    hydra.utils.get_original_cwd(),
-                    cfg.out.dir
-                )
-                os.makedirs(outdir, exist_ok=True)
-
-                model_tags = "_".join(model_abbrev(m) for m in plot_cfg.models)
-                start_tag = start.replace("-", "")
-                end_tag = end.replace("-", "")
-                fname = f"anomalies_{var}{plev_tag}_{model_tags}_{start_tag}-{end_tag}.png"
                 fig.savefig(
                     os.path.join(outdir, fname),
                     dpi=cfg.out.dpi,

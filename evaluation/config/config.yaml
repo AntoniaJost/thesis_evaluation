@@ -18,6 +18,7 @@ out:
   dir: outputs
   savefig: true
   dpi: 150
+  overwrite: ask # options: ask, true, false
 
 # conversion factors (K to deg C, scalar to percent)
 # options: applies_to: [era5, model, both], op: [sub, add, mul, div]

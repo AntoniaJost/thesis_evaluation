@@ -19,6 +19,7 @@ from evaluation.general_functions import (
     open_era5_da,
     # ensemble_mean_as_member,
     conversion_rules,
+    should_compute_output,
 )
 
 
@@ -131,6 +132,31 @@ def run(cfg):
         plevs = plevs_for_variable(da_sample, requested_plevs)
 
         for plev in plevs:
+
+            # check if file(s) already exist and if recomputation is wanted
+            plev_title = ""
+            plev_tag = ""
+            if plev is not None:
+                plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
+                plev_hpa = int(plev_pa / 100)
+                plev_title = f" at {plev_hpa} hPa"
+                plev_tag = f"@{plev_hpa}hPa"
+
+            outdir = os.path.join(
+                hydra.utils.get_original_cwd(),
+                cfg.out.dir,
+                "global_mean",                    
+            )
+            os.makedirs(outdir, exist_ok=True)
+
+            model_tags = "_".join(model_abbrev(m) for m in plot_cfg.models)
+            start_tag = start.replace("-", "")
+            end_tag = end.replace("-", "")
+            fname = f"{var}{plev_tag}_{model_tags}_{start_tag}-{end_tag}.png"
+            outfile = os.path.join(outdir, fname)
+            if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
+                continue
+            
             # --- model annual global mean per run, per member
             models_agm = {}
             for model_name in plot_cfg.models:
@@ -222,14 +248,6 @@ def run(cfg):
                 ax.plot(years, ds["mean"].values, color=c, linewidth=1.2, alpha=0.95, zorder=4)
                 ax.plot(years, lrg_mean_ens[model_name], color=c, linewidth=1.0, linestyle="--", zorder=5)
 
-            plev_title = ""
-            plev_tag = ""
-            if plev is not None:
-                plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
-                plev_hpa = int(plev_pa / 100)
-                plev_title = f" at {plev_hpa} hPa"
-                plev_tag = f"@{plev_hpa}hPa"
-
             if plot_cfg.title:
                 title = plot_cfg.title.format(var=var, long_name=long_name)
             else:
@@ -252,16 +270,6 @@ def run(cfg):
             ax.legend(loc=plot_cfg.legend.loc, frameon=False, fontsize="x-small", borderaxespad=0.0)
 
             if cfg.out.savefig:
-                outdir = os.path.join(
-                    hydra.utils.get_original_cwd(),
-                    cfg.out.dir
-                )
-                os.makedirs(outdir, exist_ok=True)
-
-                model_tags = "_".join(model_abbrev(m) for m in plot_cfg.models)
-                start_tag = start.replace("-", "")
-                end_tag = end.replace("-", "")
-                fname = f"{var}{plev_tag}_{model_tags}_{start_tag}-{end_tag}.png"
                 fig.savefig(
                     os.path.join(outdir, fname),
                     dpi=cfg.out.dpi,

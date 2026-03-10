@@ -1,6 +1,7 @@
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
+from evaluation.general_functions import normalise_list
 from evaluation.metrics import global_mean, anomalies, bias_map, soi, location_timeseries
 
 REGISTRY = {
@@ -17,7 +18,7 @@ def main(cfg: DictConfig):
     if cfg.get("print_config", False):
         print(OmegaConf.to_yaml(cfg))
 
-    for name in cfg.run_plots:
+    for name in normalise_list(cfg.run_plots):
         if name not in REGISTRY:
             raise KeyError(f"Unknown plot '{name}'. Available: {list(REGISTRY.keys())}")
         REGISTRY[name](cfg)
