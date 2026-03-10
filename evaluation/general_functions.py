@@ -63,7 +63,21 @@ def model_file_pattern(model_cfg, cfg, member: str, var: str, modelname: str, fr
     return f"{model_cfg.root}/{member}/{table}/{var}/{grid}/{pat}" # full path
 
 
-def normalise_plevs(plev_cfg) -> List[Optional[float]]:
+def normalise_vars(var_cfg) -> List:
+    """
+    normalise plot_cfg.variable to a list
+    e.g. "tas" -> ["tas"], ["tas", "siconc"] -> ["tas", "siconc"]
+    """
+    if isinstance(var_cfg, (list, tuple, ListConfig)):
+        return list(var_cfg)
+    return [var_cfg]
+
+
+def variable_requires_plev(da: xr.DataArray) -> bool:
+    return "plev" in da.dims
+
+
+def normalise_plevs(plev_cfg) -> List:
     """
     normalise plot_cfg.plev to a list
     e.g.: None -> [None], 50000 -> [50000], [85000, 50000] -> [85000, 50000]
@@ -116,6 +130,58 @@ def select_plev_if_needed(da: xr.DataArray, var: str, plev=None, context: str = 
     return da.isel(plev=int(matches[0]))
 
 
+def plevs_for_variable(da: xr.DataArray, requested_plevs) -> List:
+    """
+    returns plev list to iterate over for this var
+    - no plev dimension -> [None]
+    - has plev dimension -> requested_plevs must be provided
+    """
+    if "plev" not in da.dims:
+        return [None]
+
+    plevs = normalise_plevs(requested_plevs)
+    if plevs == [None]:
+        raise ValueError(
+            "A variable with dimension 'plev' was selected, but no pressure level was provided. "
+            "Please set plots.<plotname>.plev, e.g. plots.global_mean.plev=500 "
+            "or something like plots.global_mean.plev='[100,250,500]'."
+        )
+    return plevs
+
+
+def open_model_da_raw(model_cfg, cfg, member: str, var: str, modelname: str, freq: str, start: str, end: str,
+                      grid: str = "gn") -> xr.DataArray:
+    pattern = model_file_pattern(model_cfg, cfg, member=member, var=var, modelname=modelname, freq=freq, grid=grid)
+    path = open_single_match(pattern)
+    ds = xr.open_dataset(path).sel(time=slice(start, end))
+    if var not in ds:
+        raise KeyError(f"Variable '{var}' not found in {path}. Available: {list(ds.data_vars)}")
+    return ds[var]
+
+
+# def open_era5_da_raw(cfg, var: str, start: str, end: str) -> xr.DataArray:
+#     # map to ERA5 variable naming
+#     if var not in cfg.variables.era5_name:
+#         raise KeyError(
+#             f"No ERA5 name mapping for var='{var}'. "
+#             f"Available mappings: {list(cfg.variables.era5_name.keys())}"
+#         )
+#     era5_var = cfg.variables.era5_name[var]
+#     root = cfg.datasets.era5.root
+#     pattern = cfg.datasets.era5.pattern
+
+#     file_var = "ci" if var == "siconc" else var
+#     path = f"{root}/{pattern.format(var=file_var)}"
+
+#     ds = xr.open_dataset(path).sel(time=slice(start, end))
+#     if era5_var not in ds:
+#         raise KeyError(
+#             f"ERA5 variable '{era5_var}' not found in {path}. "
+#             f"Available: {list(ds.data_vars)}"
+#         )
+#     return ds[era5_var]
+
+
 def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: str, start: str, end: str, grid: str = "gn", plev=None) -> xr.DataArray:
     """
     Opens (xr.open_dataset) single file for given timeframe
@@ -143,13 +209,11 @@ def open_era5_da(cfg, var: str, start: str, end: str, plev=None) -> xr.DataArray
     path = f"{root}/{pattern.format(var=file_var)}"
 
     ds = xr.open_dataset(path).sel(time=slice(start, end))
-
     if era5_var not in ds:
         raise KeyError(
             f"ERA5 variable '{era5_var}' not found in {path}. "
             f"Available: {list(ds.data_vars)}"
         )
-
     da = ds[era5_var]
     da = select_plev_if_needed(da, var=var, plev=plev, context=path)
     return da
