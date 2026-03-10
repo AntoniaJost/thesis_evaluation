@@ -1,15 +1,16 @@
 # config/plots/global_mean.yaml
 variable: tas
+plev: null # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly
 grid: gn
-models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"] #["free_run_control", "free_run_prediction", 
+models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
 time:
   use_named: null
   start: "1979-01-01"
   end: "2024-12-31"
 
 figsize: [11, 5]
-title: "Global Annual Mean Surface Temperature, variable={var}"
+title: null # "Global Annual Mean {long_name}"
 
 show_era5_offset_trends: true
 

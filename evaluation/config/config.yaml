@@ -21,6 +21,7 @@ out:
 
 # conversion factors (K to deg C, scalar to percent)
 # options: applies_to: [era5, model, both], op: [sub, add, mul, div]
+# unit refers to the new unit after the conversion
 conversions: 
   ta:  {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}
   tas: {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}

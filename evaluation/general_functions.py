@@ -1,6 +1,6 @@
 # evaluation/general_functions.py
 from __future__ import annotations
-
+from omegaconf import ListConfig
 import glob
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -63,8 +63,60 @@ def model_file_pattern(model_cfg, cfg, member: str, var: str, modelname: str, fr
     return f"{model_cfg.root}/{member}/{table}/{var}/{grid}/{pat}" # full path
 
 
-def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: str, start: str, end: str,
-                  grid: str = "gn") -> xr.DataArray:
+def normalise_plevs(plev_cfg) -> List[Optional[float]]:
+    """
+    normalise plot_cfg.plev to a list
+    e.g.: None -> [None], 50000 -> [50000], [85000, 50000] -> [85000, 50000]
+    """
+    if plev_cfg is None:
+        return [None]
+    if isinstance(plev_cfg, (list, tuple, ListConfig)):
+        return list(plev_cfg)
+    return [plev_cfg]
+
+
+def accept_Pa_and_hPa(target, available_plevs) -> float:
+    """
+    accept either Pa or hPa
+    if the file uses Pa and the user passes 500, interpret it as 500 hPa -> 50000 Pa.
+    """
+    target = float(target)
+    avail = np.asarray(available_plevs, dtype=float)
+
+    if np.nanmax(avail) > 2000 and target < 2000:
+        target = target * 100.0
+
+    return target
+
+def select_plev_if_needed(da: xr.DataArray, var: str, plev=None, context: str = "") -> xr.DataArray:
+    """
+    if da has a pressure level dimension, select the requested plev
+    raises an error if plev is required but not provided
+    """
+    if "plev" not in da.dims:
+        return da
+
+    if plev is None:
+        available = [float(v) for v in da["plev"].values]
+        raise ValueError(
+            f"Variable '{var}' in {context} has a 'plev' dimension, but no plev was provided. "
+            f"Please set plots.global_mean.plev. Available plev values: {available}"
+        )
+
+    target = accept_Pa_and_hPa(plev, da["plev"].values)
+    available = np.asarray(da["plev"].values, dtype=float)
+
+    matches = np.where(np.isclose(available, target))[0]
+    if len(matches) == 0:
+        raise ValueError(
+            f"Requested plev={plev} for variable '{var}' not found in {context}. "
+            f"Available plev values: {[float(v) for v in da['plev'].values]}"
+        )
+
+    return da.isel(plev=int(matches[0]))
+
+
+def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: str, start: str, end: str, grid: str = "gn", plev=None) -> xr.DataArray:
     """
     Opens (xr.open_dataset) single file for given timeframe
     """
@@ -73,10 +125,11 @@ def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: s
     ds = xr.open_dataset(path).sel(time=slice(start, end))
     if var not in ds:
         raise KeyError(f"Variable '{var}' not found in {path}. Available: {list(ds.data_vars)}")
-    return ds[var]
+    da = ds[var]
+    da = select_plev_if_needed(da, var=var, plev=plev, context=path)
+    return da
 
-
-def open_era5_da(cfg, var: str, start: str, end: str) -> xr.DataArray:
+def open_era5_da(cfg, var: str, start: str, end: str, plev=None) -> xr.DataArray:
     # map to ERA5 variable naming
     if var not in cfg.variables.era5_name:
         raise KeyError(
@@ -97,8 +150,9 @@ def open_era5_da(cfg, var: str, start: str, end: str) -> xr.DataArray:
             f"Available: {list(ds.data_vars)}"
         )
 
-    return ds[era5_var]
-
+    da = ds[era5_var]
+    da = select_plev_if_needed(da, var=var, plev=plev, context=path)
+    return da
 
 def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default: str = "") -> tuple[xr.DataArray, str]:
     """
