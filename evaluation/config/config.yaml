@@ -11,7 +11,7 @@ defaults:
   - plots@plots.location_timeseries: location_timeseries
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean"] #, "soi", "anomalies", "bias_map", "soi_kde", "location_timeseries"]
+run_plots: ["global_mean", "anomalies"] #, "soi", "anomalies", "bias_map", "soi_kde", "location_timeseries"]
 
 # output behaviour
 out:
