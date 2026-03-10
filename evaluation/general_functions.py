@@ -19,6 +19,16 @@ def normalise_list(value):
     return [value]
 
 
+def model_abbrev(name: str) -> str:
+    return {
+        "forced_sst": "sst0K",
+        "forced_sst_2k": "sst2K",
+        "forced_sst_4k": "sst4K",
+        "free_run_control": "FRc",
+        "free_run_prediction": "FR15",
+    }.get(name, name)
+
+
 def resolve_period(cfg, plot_cfg) -> Tuple[str, str]:
     """
     Priority:
@@ -330,3 +340,59 @@ def should_compute_output(outfile: str, overwrite_mode) -> bool:
 
     print(f"Skipping existing file: {outfile_name}")
     return False
+
+
+def iter_vars_and_plevs(cfg, plot_cfg):
+    """
+    yields per-variable plotting information: var, long_name, unit, plevs, start, end
+    (yield pauses the function and returns one value at a time)
+    """
+    start, end = resolve_period(cfg, plot_cfg)
+    vars_to_plot = normalise_vars(plot_cfg.variable)
+    requested_plevs = getattr(plot_cfg, "plev", None)
+
+    sample_model_name = plot_cfg.models[0]
+    sample_model_cfg = cfg.datasets.models[sample_model_name]
+    sample_member = cfg.members[0]
+
+    for var in vars_to_plot:
+        ensure_allowed_var(cfg, var)
+
+        meta = cfg.variables.meta.get(var, None)
+        long_name = meta.long_name if meta else var
+        unit = meta.unit if meta else ""
+
+        da_sample = open_model_da_raw(
+            sample_model_cfg,
+            cfg,
+            sample_member,
+            var,
+            sample_model_cfg.modelname,
+            plot_cfg.freq,
+            start,
+            end,
+            grid=plot_cfg.grid,
+        )
+
+        plevs = plevs_for_variable(da_sample, requested_plevs)
+
+        yield {
+            "var": var,
+            "long_name": long_name,
+            "unit": unit,
+            "plevs": plevs,
+            "start": start,
+            "end": end,
+        }
+
+
+def plev_strings(plev):
+    """
+    return title/file strings for a pressure level
+    """
+    if plev is None:
+        return "", ""
+
+    plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
+    plev_hpa = int(plev_pa / 100)
+    return f" at {plev_hpa} hPa", f"@{plev_hpa}hPa"

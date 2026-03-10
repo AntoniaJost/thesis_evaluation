@@ -8,15 +8,13 @@ import os
 import hydra
 
 from evaluation.general_functions import (
-    ensure_allowed_var,
-    resolve_period,
-    normalise_vars,
-    plevs_for_variable,
-    open_model_da_raw,
+    model_abbrev,
     open_model_da,
     open_era5_da,
     conversion_rules,
     should_compute_output,
+    iter_vars_and_plevs,
+    plev_strings,
 )
 
 from evaluation.metrics.global_mean import (
@@ -26,7 +24,6 @@ from evaluation.metrics.global_mean import (
     area_weighted_global_mean,
     select_colour,
     select_light_colour,
-    model_abbrev,
 )
 
 
@@ -37,49 +34,19 @@ def to_anomaly(da: xr.DataArray, baseline_start: str, baseline_end: str):
 
 def run(cfg):
     plot_cfg = cfg.plots.anomalies #.metrics.anomalies
-    start, end = resolve_period(cfg, plot_cfg)
-
-    vars_to_plot = normalise_vars(plot_cfg.variable)
-    requested_plevs = getattr(plot_cfg, "plev", None)
-    
     base_start = plot_cfg.baseline.start
-    base_end = plot_cfg.baseline.end    
+    base_end = plot_cfg.baseline.end
 
-    for var in vars_to_plot:
-        ensure_allowed_var(cfg, var)
-        meta = cfg.variables.meta.get(var, None)
-        long_name = meta.long_name if meta else var
-        unit = meta.unit if meta else ""
+    for item in iter_vars_and_plevs(cfg, plot_cfg):
+        var = item["var"]
+        long_name = item["long_name"]
+        unit = item["unit"]
+        start = item["start"]
+        end = item["end"]
 
-        # inspect one sample model file to determine whether this variable has plev
-        sample_model_name = plot_cfg.models[0]
-        sample_model_cfg = cfg.datasets.models[sample_model_name]
-        sample_member = cfg.members[0]
-
-        da_sample = open_model_da_raw(
-            sample_model_cfg,
-            cfg,
-            sample_member,
-            var,
-            sample_model_cfg.modelname,
-            plot_cfg.freq,
-            start,
-            end,
-            grid=plot_cfg.grid,
-        )
-
-        plevs = plevs_for_variable(da_sample, requested_plevs)
-
-        for plev in plevs:
+        for plev in item["plevs"]:
             # check if file already exists and if recomputation is wanted
-            plev_title = ""
-            plev_tag = ""
-            if plev is not None:
-                plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
-                plev_hpa = int(plev_pa / 100)
-                plev_title = f" at {plev_hpa} hPa"
-                plev_tag = f"@{plev_hpa}hPa"
-
+            plev_title, plev_tag = plev_strings(plev)
             outdir = os.path.join(
                 hydra.utils.get_original_cwd(),
                 cfg.out.dir,
