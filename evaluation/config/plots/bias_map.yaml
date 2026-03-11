@@ -1,19 +1,36 @@
-variable: tas
+variable: psl # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
+# if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
+plev: null # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly
 grid: gn
-models: ["forced_sst_2k"]
+models: ["forced_sst"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
 time:
-  use_named: TRP
+  use_named: TRP # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: null
   end: null
 
-title: "{var} trend slope: {model} vs ERA5"
+include_ensemble_mean_as_member: true
 
-levels_model: [-2, -1.75, -1.5, -1.25, -1, -0.75, -0.5, -0.25, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2.0]
-diff_bin: 0.25
+title: null # e.g. "{var} trend slope: {model} vs ERA5"; title may contain {var}, {long_name}, {model_name} or {proper_model_name}
+
+coastline_colour: green # default: black
+cmap_model: seismic # default: RdBu_r
+target_bins: 20 # into how many bins the colourbar is split
+set_size_of_bins: null # options: any int or null; determines the size of every bin (in the unit of the trend of the var per decade)
+
+cmap_diff: BrBG # default: RdBu_r
+target_bins_diff: 20
+set_size_of_bins_diff: null
 
 figscale_col: 3.8
 figscale_row: 2.8
 
-cbar_label_model: "Trend (per decade)"
-cbar_label_diff: "Model - ERA5 (per decade)"
+cbar_label_model: "Trend"
+cbar_label_diff: "Model - ERA5"
+
+add_numbers: true # calcs global RMSE and difference
+
+range_source:
+  csv_file1: "/work/bk1450/a270220/repos/thesis_evaluation/outputs/range_summary/range_summary_compactv3.csv"
+  csv_file2: "/work/bk1450/a270220/repos/thesis_evaluation/outputs/range_summary/model_minus_era5_summary_by_var_plev.csv"
+  percentile: 99 # options: 99, 95, raw; impacts the selection of the min/max values of the colourbar (e.g. 95 uses the 5th and 95th percentile and therefore includes less extremes than option 99 or even less then option "raw")

@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 import numpy as np
 import xarray as xr
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import cm
@@ -12,14 +13,18 @@ import cartopy.crs as ccrs
 import os
 import hydra
 from cartopy.util import add_cyclic_point
+from functools import lru_cache
 
 from evaluation.general_functions import (
-    ensure_allowed_var,
-    resolve_period,
+    model_abbrev,
     open_model_da,
     open_era5_da,
     ensemble_mean_as_member,
     conversion_rules,
+    should_compute_output,
+    iter_vars_and_plevs,
+    plev_strings,
+    accept_Pa_and_hPa,
 )
 
 
@@ -34,8 +39,8 @@ def compute_slope_per_gridpoint(da: xr.DataArray) -> xr.DataArray:
     return slope
 
 
-def plot_map(ax, ds: xr.DataArray, title: str, levels, norm, cmap="RdBu_r"):
-    ax.coastlines(linewidth=0.9, color="green")
+def plot_map(ax, ds: xr.DataArray, title: str, levels, norm, cmap="RdBu_r", coastline_colour: str = "black"):
+    ax.coastlines(linewidth=0.9, color=coastline_colour)
     ax.set_title(title, fontsize=10)
     ax.gridlines(linewidth=0.7, color="black", alpha=0.5, linestyle="--")
 
@@ -53,104 +58,394 @@ def plot_map(ax, ds: xr.DataArray, title: str, levels, norm, cmap="RdBu_r"):
     return cf
 
 
-def run(cfg):
-    plot_cfg = cfg.plots.bias_map #.metrics.bias_map
-    ensure_allowed_var(cfg, plot_cfg.variable)
-
-    start, end = resolve_period(cfg, plot_cfg)
-    var = plot_cfg.variable
-
-    # ERA5 slope
-    da_era5 = conversion_rules(var, open_era5_da(cfg, var, start, end), cfg, "era5")
-    era5_slope = compute_slope_per_gridpoint(da_era5) * 10.0  # per decade
-
-    for model_name in plot_cfg.models:
-        model_cfg = cfg.datasets.models[model_name]
-
-        model_slope = {}
-        bias_slope = {}
-
-        for m in cfg.members:
-            da_model = conversion_rules(
-                var,
-                open_model_da(model_cfg, cfg, m, var, model_cfg.modelname, plot_cfg.freq, start, end, grid=plot_cfg.grid),
-                cfg,
-                "model"
-            )
-            s = compute_slope_per_gridpoint(da_model) * 10.0
-            model_slope[m] = s
-            bias_slope[m] = (s - era5_slope).rename("bias")
-
-        if cfg.include_ensemble_mean_as_member:
-            model_slope = ensemble_mean_as_member(model_slope, name="mean")
-            bias_slope = {k: (model_slope[k] - era5_slope) for k in model_slope.keys()}
-
-        members = list(cfg.members) + (["mean"] if cfg.include_ensemble_mean_as_member else [])
-        ncols = len(members)
-        nrows = 3
-
-        # colour settings from cfg
-        cmap = mpl.cm.seismic
-        bounds = list(plot_cfg.levels_model)
-        norm = mpl.colors.BoundaryNorm(bounds, cmap.N, extend="both")
-
-        # build diff levels
-        dmin = float(min([np.nanmin(bias_slope[m].values) for m in members]))
-        dmax = float(max([np.nanmax(bias_slope[m].values) for m in members]))
-        bin_size = float(plot_cfg.diff_bin)
-        uL = math.floor(dmin / bin_size)
-        oL = math.ceil(dmax / bin_size)
-        levels_diff = [i * bin_size for i in range(uL, 0)] + [i * bin_size for i in range(1, oL + 1)]
-        levels_diff = sorted([x for x in levels_diff if x != 0])
-
-        cmap_diff = cm.BrBG
-        norm_diff = mcolors.BoundaryNorm(boundaries=levels_diff, ncolors=cmap_diff.N)
-
-        fig, axes = plt.subplots(
-            ncols=ncols,
-            nrows=nrows,
-            figsize=(plot_cfg.figscale_col * ncols, plot_cfg.figscale_row * nrows),
-            layout="constrained",
-            subplot_kw=dict(projection=ccrs.Robinson()),
-            squeeze=False,
+def add_row_labels(axes, labels, x=-0.05, fontsize=10, fontweight="bold"):
+    # add a label for each row on the left side
+    for r, label in enumerate(labels):
+        ax = axes[r, 0]
+        ax.text(
+            x,
+            0.5,
+            label,
+            transform=ax.transAxes,
+            rotation=90,
+            va="center",
+            ha="right",
+            fontsize=fontsize,
+            fontweight=fontweight,
         )
-        fig.suptitle(plot_cfg.title.format(var=var, model=model_name), fontsize=15, fontweight="bold")
 
-        for r in range(nrows):
-            for c in range(ncols):
-                mem = members[c]
-                ax = axes[r, c]
-                if r == 0:
-                    cf = plot_map(ax, model_slope[mem], f"{model_name}\n{mem}", levels=bounds, norm=norm, cmap=cmap)
-                elif r == 1:
-                    cf = plot_map(ax, era5_slope, "ERA5", levels=bounds, norm=norm, cmap=cmap)
-                else:
-                    cf = plot_map(ax, bias_slope[mem], f"Diff\n{mem} - ERA5",
-                                  levels=levels_diff, norm=mcolors.CenteredNorm(), cmap=cmap_diff)
 
-        # colourbars
-        cbar1 = fig.colorbar(cf, ax=axes[0:2, :], orientation="vertical",
-                             shrink=0.7, pad=0.02, spacing="proportional")
-        cbar1.set_label(plot_cfg.cbar_label_model)
+def area_weights_2d(da: xr.DataArray, lat_name: str = "lat") -> xr.DataArray:
+    return np.cos(np.deg2rad(da[lat_name])) # latitude weights for area-weighted map statistics
 
-        cbar2 = fig.colorbar(axes[2, 0].collections[0], ax=axes[2, :], orientation="vertical",
-                             shrink=0.7, pad=0.02, spacing="proportional")
-        cbar2.set_label(plot_cfg.cbar_label_diff)
 
-        # plt.show()
-        if cfg.out.savefig:
-            outdir = os.path.join(
-                hydra.utils.get_original_cwd(),
-                cfg.out.dir
+def area_weighted_mean_map(da: xr.DataArray, lat_name: str = "lat", lon_name: str = "lon") -> float:
+    w = area_weights_2d(da, lat_name=lat_name)
+    return float(da.weighted(w).mean(dim=(lat_name, lon_name)).values)
+
+
+def area_weighted_rmse_map(diff: xr.DataArray, lat_name: str = "lat", lon_name: str = "lon") -> float:
+    w = area_weights_2d(diff, lat_name=lat_name)
+    mse = (diff ** 2).weighted(w).mean(dim=(lat_name, lon_name))
+    return float(np.sqrt(mse.values))
+
+
+def add_bottom_numbers(ax, diff_value: float, rmse_value: float, unit: str, fontsize: int = 8):
+    # add difference and RMSE as number below the panel
+    text = f"Diff: {diff_value:+.2f} | RMSE: {rmse_value:.2f} {unit}/dec"
+    ax.text(
+        0.5,
+        -0.14,
+        text,
+        transform=ax.transAxes,
+        ha="center",
+        va="top",
+        fontsize=fontsize,
+        clip_on=False,
+    )
+
+
+@lru_cache
+def load_range_table(path): # caches csv
+    return pd.read_csv(path)
+
+def get_slope_range_from_csv(cfg, csv_file: str, var: str, plev: int | None):
+    """
+    read slope range from CSV for given variable and pressure level
+    returns vmin & vmax
+    """
+    percentile = cfg.plots.bias_map.range_source.percentile
+
+    if not os.path.exists(csv_file):
+        raise FileNotFoundError(
+            f"Required CSV file for computing the bias maps not found:\n{csv_file}\n"
+            "Run the range_summary script first (python -m evaluation.range_summary) to generate it and ensure that bias_map.yaml receives the correct path."
+        )
+
+    df = load_range_table(csv_file)
+
+    # detect variable column name
+    var_col = "variable" if "variable" in df.columns else "var"
+    df = df[df[var_col] == var]
+
+    # only filter by pressure level if one is requested
+    if plev is not None:
+        if "plev_pa" not in df.columns or "plev_hpa" not in df.columns:
+            raise ValueError(
+                f"Pressure-level variable requested (plev={plev}), but CSV does not contain "
+                f"'plev_pa' and 'plev_hpa'. Available columns: {list(df.columns)}"
             )
-            os.makedirs(outdir, exist_ok=True)
 
-            fname = "bias_map.png"
-            fig.savefig(
-                os.path.join(outdir, fname),
-                dpi=cfg.out.dpi,
-                bbox_inches="tight"
-            )
-            plt.close(fig)
+        # decide whether user input is Pa or hPa; if available values are in Pa and input < 2000, interpret as hPa
+        plev_pa = accept_Pa_and_hPa(plev, df["plev_pa"].dropna().values)
+
+        if float(plev) < 2000:
+            # user likely gave hPa
+            df = df[df["plev_hpa"] == float(plev)]
         else:
-            plt.show()
+            # user gave Pa
+            df = df[df["plev_pa"] == plev_pa]
+
+    if df.empty:
+        raise ValueError(f"No range info found in CSV for {var} at plev={plev}")
+
+    row = df.iloc[0]
+
+    # choose correct columns
+    if str(percentile) == "99":
+        vmin = row["slope_p01"]
+        vmax = row["slope_p99"]
+
+    elif str(percentile) == "95":
+        vmin = row["slope_p05"]
+        vmax = row["slope_p95"]
+
+    elif str(percentile).lower() == "raw":
+        vmin = row["slope_min"]
+        vmax = row["slope_max"]
+
+    else:
+        raise ValueError(f"Unknown percentile option: {percentile}")
+
+    return float(vmin), float(vmax)
+
+
+def nice_bin_size(vmin: float, vmax: float, target_bins: int = 12):
+    """
+    compute a "nice" bin size (fractions of 1, 2 or 5; nothing like 1.293)
+    target_bins ≈ desired number of bins across the full range
+    """
+    span = abs(vmax - vmin)
+    raw_step = span / target_bins
+    exponent = np.floor(np.log10(raw_step))
+    fraction = raw_step / (10 ** exponent)
+
+    if fraction <= 1:
+        nice_fraction = 1
+    elif fraction <= 2:
+        nice_fraction = 2
+    elif fraction <= 5:
+        nice_fraction = 5
+    else:
+        nice_fraction = 10
+
+    step = nice_fraction * 10 ** exponent
+    return step
+
+
+def build_zero_bin_levels(vmin: float, vmax: float, bin_size: float):
+    """
+    build discrete levels with a white bin around zero
+    """
+    lower = math.floor(vmin / bin_size)
+    upper = math.ceil(vmax / bin_size)
+
+    levels = [i * bin_size for i in range(lower, 0)] + [i * bin_size for i in range(1, upper + 1)]
+    levels = sorted(set(levels))
+
+    # make sure the central white interval exists
+    if -bin_size not in levels:
+        levels.append(-bin_size)
+    if bin_size not in levels:
+        levels.append(bin_size)
+
+    levels = sorted(levels)
+    return levels
+
+
+def symmetric_ticks_from_levels(levels, vmin, vmax, mode: str | None = None):
+    """
+    bit of a work around function to make sure that the ticks span symmatrically around
+    the white bin -> uses the first positive boundary outside the zero bin as the tick spacing
+    if mode = diff: return every second tick, as bar is smaller
+    """
+    levels = np.array(sorted(levels), dtype=float)
+
+    # determine tick spacing from first positive level outside white bin
+    pos_levels = levels[levels > 0]
+    if len(pos_levels) == 0:
+        return [0]
+
+    step = pos_levels[0]
+
+    # build full tick range
+    pos_ticks = np.arange(0, vmax + step, step)
+    neg_ticks = np.arange(0, vmin - step, -step)
+    ticks = np.unique(np.concatenate([neg_ticks, pos_ticks]))
+
+    # remove 0 for diff plot to not get too crowded
+    ticks = ticks[~np.isclose(ticks, 0)]
+
+    if mode == "diff":
+        pos = ticks[ticks > 0]
+        neg = ticks[ticks < 0]
+
+        # keep every second tick, starting from the one closest to zero
+        pos = pos[::2]
+        neg = neg[::-1][::2][::-1]
+
+        ticks = np.concatenate([neg, pos])
+    else:
+        # add zero tick for model colourbar
+        ticks = np.concatenate([ticks, [0]])
+    return ticks
+
+
+def run(cfg):
+    plot_cfg = cfg.plots.bias_map 
+
+    for item in iter_vars_and_plevs(cfg, plot_cfg):
+        var = item["var"]
+        long_name = item["long_name"]
+        unit = item["unit"]
+        start = item["start"]
+        end = item["end"]
+
+        for plev in item["plevs"]:
+            plev_title, plev_tag = plev_strings(plev)
+
+            for model_name in plot_cfg.models:
+                proper_model_name = cfg.datasets.models[model_name].proper_name
+                model_cfg = cfg.datasets.models[model_name]
+
+                outdir = os.path.join(
+                    hydra.utils.get_original_cwd(),
+                    cfg.out.dir,
+                    "bias_map",
+                )
+                os.makedirs(outdir, exist_ok=True)
+
+                model_tag = model_abbrev(model_name)
+                start_tag = start.replace("-", "")
+                end_tag = end.replace("-", "")
+                perc = ""
+                if plot_cfg.range_source.percentile == 99:
+                    perc = "_99p"
+                elif plot_cfg.range_source.percentile == 95:
+                    perc = "_95p"
+                fname = f"bias_map_{var}{plev_tag}_{model_tag}_{start_tag}-{end_tag}{perc}.png"
+                outfile = os.path.join(outdir, fname)
+
+                if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
+                    continue
+
+                unit_here = unit
+
+                # ERA5 slope
+                da_era5 = open_era5_da(cfg, var=var, start=start, end=end, plev=plev)
+                da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_here)
+                era5_slope = compute_slope_per_gridpoint(da_era5) * 10.0  # per decade
+
+                model_slope = {}
+                bias_slope = {}
+
+                # model slope
+                for m in cfg.members:
+                    da_model = open_model_da(model_cfg=model_cfg, cfg=cfg, member=m, var=var, modelname=model_cfg.modelname, freq=plot_cfg.freq, start=start, end=end, grid=plot_cfg.grid, plev=plev,)
+                    da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
+                    s = compute_slope_per_gridpoint(da_model) * 10.0
+                    model_slope[m] = s
+                    bias_slope[m] = (s - era5_slope).rename("bias")
+
+                if plot_cfg.include_ensemble_mean_as_member:
+                    model_slope = ensemble_mean_as_member(model_slope, name="mean")
+                    bias_slope = {k: (model_slope[k] - era5_slope) for k in model_slope.keys()}
+
+                # statistics
+                diff_stats = {}
+                rmse_stats = {}
+                if plot_cfg.add_numbers:
+                    for mem_name, diff_map in bias_slope.items():
+                        diff_stats[mem_name] = area_weighted_mean_map(diff_map)
+                        rmse_stats[mem_name] = area_weighted_rmse_map(diff_map)
+
+                members = list(cfg.members) + (["mean"] if cfg.include_ensemble_mean_as_member else [])
+                ncols = len(members)
+                nrows = 3
+
+                # ---- colour settings from cfg, ranges from CSV; for model 
+                cmap_model = mpl.cm.get_cmap(plot_cfg.cmap_model)
+                csv_file_model = cfg.plots.bias_map.range_source.csv_file1
+                vmin_model, vmax_model = get_slope_range_from_csv(cfg, csv_file_model, var, plev)
+
+                # automatic bin size unless manually provided
+                if plot_cfg.set_size_of_bins is None:
+                    bin_size = nice_bin_size(vmin_model, vmax_model, plot_cfg.target_bins)
+                else:
+                    bin_size = plot_cfg.set_size_of_bins
+
+                levels_model = build_zero_bin_levels(
+                    vmin=vmin_model,
+                    vmax=vmax_model,
+                    bin_size=bin_size,
+                )
+                norm_model = mpl.colors.CenteredNorm(vcenter=0) 
+                ticks_model = symmetric_ticks_from_levels(levels_model, vmin_model, vmax_model)
+                coastline_colour = str(plot_cfg.coastline_colour)
+                
+                # ---- colours for difference row
+                cmap_diff = mpl.cm.get_cmap(plot_cfg.cmap_diff)
+                csv_file_diff = cfg.plots.bias_map.range_source.csv_file2
+                vmin_diff, vmax_diff = get_slope_range_from_csv(cfg, csv_file_diff, var, plev)
+
+                # automatic bin size unless manually provided
+                if plot_cfg.set_size_of_bins_diff is None:
+                    bin_size_diff = nice_bin_size(vmin_diff, vmax_diff, plot_cfg.target_bins_diff)
+                else:
+                    bin_size_diff = plot_cfg.set_size_of_bins_diff
+
+                levels_diff = build_zero_bin_levels(
+                    vmin=vmin_diff,
+                    vmax=vmax_diff,
+                    bin_size=bin_size_diff,
+                )
+                norm_diff = mpl.colors.CenteredNorm(vcenter=0) 
+                ticks_diff = symmetric_ticks_from_levels(levels_diff, vmin_diff, vmax_diff, "diff")
+
+                # ---- plotting ----
+                fig, axes = plt.subplots(
+                    ncols=ncols,
+                    nrows=nrows,
+                    figsize=(plot_cfg.figscale_col * ncols, plot_cfg.figscale_row * nrows),
+                    layout="constrained",
+                    subplot_kw=dict(projection=ccrs.Robinson()),
+                    squeeze=False,
+                )
+                if plot_cfg.title:
+                    title = plot_cfg.title.format(
+                        var=var,
+                        long_name=long_name,
+                        model=model_name,
+                        proper_model_name=proper_model_name,
+                    )
+                else:
+                    title = f"{long_name} ({var}{plev_title}) trend slope: {proper_model_name} vs ERA5"
+
+                fig.suptitle(title, fontsize=15, fontweight="bold")
+
+                cf_model = None
+                cf_diff = None
+
+                for r in range(nrows):
+                    for c in range(ncols):
+                        mem = members[c]
+                        ax = axes[r, c]
+                        if r == 0:
+                            cf_model = plot_map(
+                                ax,
+                                model_slope[mem],
+                                mem,
+                                levels=levels_model,
+                                norm=norm_model,
+                                cmap=cmap_model,
+                                coastline_colour=coastline_colour,
+                            )
+                        elif r == 1:
+                            cf_model = plot_map(
+                                ax,
+                                era5_slope,
+                                "",
+                                levels=levels_model,
+                                norm=norm_model,
+                                cmap=cmap_model,
+                                coastline_colour=coastline_colour,
+                            )
+                        else:
+                            cf_diff = plot_map(
+                                ax,
+                                bias_slope[mem],
+                                f"{mem} - ERA5",
+                                levels=levels_diff,
+                                norm=norm_diff,
+                                cmap=cmap_diff,
+                                coastline_colour=coastline_colour,
+                            )
+                            if plot_cfg.add_numbers:
+                                add_bottom_numbers(
+                                    ax,
+                                    diff_stats[mem],
+                                    rmse_stats[mem],
+                                    unit_here,
+                                )
+                add_row_labels(axes, [proper_model_name, "ERA5", "Difference"])
+                # colourbars
+                cbar1 = fig.colorbar(cf_model, ax=axes[0:2, :], orientation="vertical",
+                                    shrink=0.7, pad=0.02, spacing="proportional")
+                cbar1.set_label(f"{plot_cfg.cbar_label_model} ({unit_here}/decade)")
+                cbar1.set_ticks(ticks_model)
+
+                cbar2 = fig.colorbar(cf_diff, ax=axes[2, :], orientation="vertical",
+                                    shrink=0.7, pad=0.02, spacing="proportional")
+                cbar2.set_label(f"{plot_cfg.cbar_label_diff} ({unit_here}/decade)")
+                cbar2.set_ticks(ticks_diff)
+
+                # plt.show()
+                if cfg.out.savefig:
+                    fig.savefig(
+                        outfile,
+                        dpi=cfg.out.dpi,
+                        bbox_inches="tight"
+                    )
+                    plt.close(fig)
+                else:
+                    plt.show()
