@@ -325,7 +325,7 @@ def run(cfg):
 
                 # ---- colour settings from cfg, ranges from CSV; for model 
                 cmap_model = mpl.cm.get_cmap(plot_cfg.cmap_model)
-                csv_file_model = cfg.plots.bias_map.range_source.csv_file1
+                csv_file_model = os.path.join(hydra.utils.get_original_cwd(), cfg.plots.bias_map.range_source.csv_file1)
                 vmin_model, vmax_model = get_slope_range_from_csv(cfg, csv_file_model, var, plev)
 
                 # automatic bin size unless manually provided
@@ -345,7 +345,7 @@ def run(cfg):
                 
                 # ---- colours for difference row
                 cmap_diff = mpl.cm.get_cmap(plot_cfg.cmap_diff)
-                csv_file_diff = cfg.plots.bias_map.range_source.csv_file2
+                csv_file_diff = os.path.join(hydra.utils.get_original_cwd(), cfg.plots.bias_map.range_source.csv_file2)
                 vmin_diff, vmax_diff = get_slope_range_from_csv(cfg, csv_file_diff, var, plev)
 
                 # automatic bin size unless manually provided
