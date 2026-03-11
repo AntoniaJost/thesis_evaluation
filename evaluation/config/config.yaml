@@ -11,7 +11,7 @@ defaults:
   - plots@plots.location_timeseries: location_timeseries
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean", "anomalies"] #, "soi", "anomalies", "bias_map", "soi_kde", "location_timeseries"]
+run_plots: ["global_mean", "anomalies", "bias_map"] #"global_mean", "anomalies", "bias_map", "soi", "soi_kde", "location_timeseries"]
 
 # output behaviour
 out:
@@ -38,7 +38,7 @@ pattern:
 
 # members & mean
 members: ["member1","member2","member3","member4","member5"]
-include_ensemble_mean_as_member: true   # for bias / ENSO 
+include_ensemble_mean_as_member: true   # for ENSO 
 
 print_config: false
 

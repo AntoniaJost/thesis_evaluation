@@ -1,22 +1,22 @@
-variable: tas # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
+variable: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
 # if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
-plev: null # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
+plev: [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly # options: monthly or daily
 grid: gn
-models: ["forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
+models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
 time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
 
 baseline:
-  start: "1980-01-01"
-  end: "1984-12-31"
+  start: "1979-01-01"
+  end: "1983-12-31"
 
 figsize: [11.5, 4.8]
 title: null # e.g. "Global Annual Mean {long_name} Anomaly ({var})"
 
-unit_out: "°C"
+# unit_out: "°C"
 
 ticks:
   major: 10
