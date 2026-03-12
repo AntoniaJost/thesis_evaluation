@@ -179,29 +179,6 @@ def open_model_da_raw(model_cfg, cfg, member: str, var: str, modelname: str, fre
     return ds[var]
 
 
-# def open_era5_da_raw(cfg, var: str, start: str, end: str) -> xr.DataArray:
-#     # map to ERA5 variable naming
-#     if var not in cfg.variables.era5_name:
-#         raise KeyError(
-#             f"No ERA5 name mapping for var='{var}'. "
-#             f"Available mappings: {list(cfg.variables.era5_name.keys())}"
-#         )
-#     era5_var = cfg.variables.era5_name[var]
-#     root = cfg.datasets.era5.root
-#     pattern = cfg.datasets.era5.pattern
-
-#     file_var = "ci" if var == "siconc" else var
-#     path = f"{root}/{pattern.format(var=file_var)}"
-
-#     ds = xr.open_dataset(path).sel(time=slice(start, end))
-#     if era5_var not in ds:
-#         raise KeyError(
-#             f"ERA5 variable '{era5_var}' not found in {path}. "
-#             f"Available: {list(ds.data_vars)}"
-#         )
-#     return ds[era5_var]
-
-
 def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: str, start: str, end: str, grid: str = "gn", plev=None) -> xr.DataArray:
     """
     Opens (xr.open_dataset) single file for given timeframe
@@ -237,6 +214,7 @@ def open_era5_da(cfg, var: str, start: str, end: str, plev=None) -> xr.DataArray
     da = ds[era5_var]
     da = select_plev_if_needed(da, var=var, plev=plev, context=path)
     return da
+
 
 def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default: str = "") -> tuple[xr.DataArray, str]:
     """
@@ -277,8 +255,8 @@ def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default:
 
 def ensemble_mean_as_member(member_to_da: Dict[str, xr.DataArray], name: str = "mean") -> Dict[str, xr.DataArray]:
     """
-    Compute mean across members and add as an extra "member".
-    Assumes all DAs are aligned.
+    compute mean across members and add as an extra "member"
+    assumes all DAs are aligned
     """
     keys = sorted(member_to_da.keys())
     da_members = xr.concat([member_to_da[k] for k in keys], dim="member").assign_coords(member=keys)

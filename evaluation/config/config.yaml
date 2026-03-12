@@ -36,9 +36,8 @@ pattern:
   monthly: "{var}_Amon_{modelname}_aimip_r*i1p1f1_gn_*.nc"
   daily:   "{var}_day_{modelname}_aimip_r*i1p1f1_gn_*.nc"
 
-# members & mean
-members: ["member1","member2","member3","member4","member5"]
-include_ensemble_mean_as_member: true   # for ENSO 
+
+members: ["member1","member2","member3","member4","member5"] 
 
 print_config: false
 
