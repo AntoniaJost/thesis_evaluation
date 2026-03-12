@@ -1,20 +1,34 @@
-variable: psl
+variable: psl # only works with psl! Do not change
 freq: monthly
 grid: gn
-models: ["forced_sst"]  # can list multiple model datasets
+models: ["free_run_prediction"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
+
 time:
-  use_named: null
+  use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
 
 bar_width_days: 25
 figsize: [18, 4]
 
-kde:
+include_ensemble_mean_as_member: true 
+only_mean: false # if this is set to true, include_ensemble_mean_as_member also has to be true
+
+enso_plot:
+  colour_elnino: "steelblue"
+  colour_lanina: "indianred"
+
+hist_kde:
   enabled: true
-  bw_method: scott
-  n_eval: 500
-  pad: 0.5
+  hist_bins: 30 # amount of bins for histograms
+  hist_pad: 0.5 # padding after tails
+  kde_n_eval: 200 
+  kde_bw_method: scott
+  xpad: 0.02 # padding underneath bottom of histogram (to not sit immediately on y-axis)
+  model_colour: "steelblue"
+  model_linecol: "steelblue"
+  era5_colour: "gold"
+  era5_linecol: "black"
 
 regions:
   tahiti: {lat0: -10, lat1: -20, lon0: 200, lon1: 210}
