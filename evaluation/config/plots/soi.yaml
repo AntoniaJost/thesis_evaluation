@@ -1,7 +1,7 @@
 variable: psl # only works with psl! Do not change
 freq: monthly
 grid: gn
-models: ["free_run_prediction"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
+models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
 
 time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
