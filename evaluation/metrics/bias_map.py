@@ -319,7 +319,7 @@ def run(cfg):
                         diff_stats[mem_name] = area_weighted_mean_map(diff_map)
                         rmse_stats[mem_name] = area_weighted_rmse_map(diff_map)
 
-                members = list(cfg.members) + (["mean"] if cfg.include_ensemble_mean_as_member else [])
+                members = list(cfg.members) + (["mean"] if plot_cfg.include_ensemble_mean_as_member else [])
                 ncols = len(members)
                 nrows = 3
 
