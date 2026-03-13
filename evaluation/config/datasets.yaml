@@ -34,3 +34,9 @@ datasets:
       root: /work/bk1450/a270220/cmorised_awm/free_run_prediction
       proper_name: AW-Gen free-run
       era5_offset_k: 0
+
+    archesweather:
+      modelname: ArchesWeather
+      root: /work/bk1450/a270220/cmorised_awm/archesweather
+      proper_name: AW
+      era5_offset_k: 0

@@ -3,7 +3,7 @@ variable: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] # options:
 plev: [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly # options: monthly or daily
 grid: gn
-models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
+models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
 time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
@@ -25,20 +25,22 @@ ticks:
 legend:
   loc: "lower right"
 
-# colour-blind / red-green blind friendly colours
+# colour-blind / red-green blind friendly colours (Okabe-Ito colour palette)
 colours:
   base_colours:
     forced_sst:      "#0072B2"  # blue
     forced_sst_2k:   "#E69F00"  # orange
     forced_sst_4k:   "#009E73"  # green
     free_run_control: "#D55E00"  # vermillion
-    free_run_prediction: "#CC79A7"  # purple
+    free_run_prediction: "#4D4D4D"  # neutral dark grey
+    archesweather:     "#CC79A7"  # purple
 
   colours_light:
     forced_sst:      "#56B4E9"
     forced_sst_2k:   "#F0E442"
     forced_sst_4k:   "#7ED1B2"
     free_run_control: "#F4A582"
-    free_run_prediction: "#E7B7D4"
+    free_run_prediction: "#BDBDBD" 
+    archesweather:    "#E7B7D4"   
 
 
