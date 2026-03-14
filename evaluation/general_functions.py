@@ -7,7 +7,9 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import xarray as xr
+import pandas as pd
 import os
+from functools import lru_cache
 
 
 def normalise_list(value):
@@ -374,3 +376,64 @@ def plev_strings(plev):
     plev_pa = int(float(plev) * 100) if float(plev) < 2000 else int(float(plev))
     plev_hpa = int(plev_pa / 100)
     return f" at {plev_hpa} hPa", f"@{plev_hpa}hPa"
+
+
+@lru_cache
+def load_range_table(path): # caches csv
+    return pd.read_csv(path)
+
+
+def get_range_from_csv(percentile, csv_file: str, var: str, plev: int | None, prefix: str = "slope"):
+    """
+    reads min/max plotting range from CSV for a given variable and pressure level
+    returns vmin, vmax
+    """
+    if not os.path.exists(csv_file):
+        raise FileNotFoundError(
+            f"Required CSV file for computing the bias maps not found:\n{csv_file}\n"
+            "Run the range_summary script first (python -m evaluation.range_summary) to generate it and ensure that bias_map.yaml receives the correct path."
+        )
+
+    df = load_range_table(csv_file)
+
+    # detect variable column name
+    var_col = "variable" if "variable" in df.columns else "var"
+    df = df[df[var_col] == var]
+
+    # only filter by pressure level if one is requested
+    if plev is not None:
+        if "plev_pa" not in df.columns or "plev_hpa" not in df.columns:
+            raise ValueError(
+                f"Pressure-level variable requested (plev={plev}), but CSV does not contain "
+                f"'plev_pa' and 'plev_hpa'. Available columns: {list(df.columns)}"
+            )
+
+        # decide whether user input is Pa or hPa; if available values are in Pa and input < 2000, interpret as hPa
+        plev_pa = accept_Pa_and_hPa(plev, df["plev_pa"].dropna().values)
+
+        if float(plev) < 2000:
+            # user likely gave hPa
+            df = df[df["plev_hpa"] == float(plev)]
+        else:
+            # user gave Pa
+            df = df[df["plev_pa"] == plev_pa]
+
+    if df.empty:
+        raise ValueError(f"No range info found in CSV for {var} at plev={plev}")
+
+    row = df.iloc[0]
+    percentile = str(percentile).lower()
+
+    if percentile == "99":
+        vmin = row[f"{prefix}_p01"]
+        vmax = row[f"{prefix}_p99"]
+    elif percentile == "95":
+        vmin = row[f"{prefix}_p05"]
+        vmax = row[f"{prefix}_p95"]
+    elif percentile == "raw":
+        vmin = row[f"{prefix}_min"]
+        vmax = row[f"{prefix}_max"]
+    else:
+        raise ValueError(f"Unknown percentile option: {percentile}")
+
+    return float(vmin), float(vmax)

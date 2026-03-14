@@ -4,7 +4,6 @@ from __future__ import annotations
 import math
 import numpy as np
 import xarray as xr
-import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import cm
@@ -13,7 +12,6 @@ import cartopy.crs as ccrs
 import os
 import hydra
 from cartopy.util import add_cyclic_point
-from functools import lru_cache
 
 from evaluation.general_functions import (
     model_abbrev,
@@ -24,7 +22,7 @@ from evaluation.general_functions import (
     should_compute_output,
     iter_vars_and_plevs,
     plev_strings,
-    accept_Pa_and_hPa,
+    get_range_from_csv,
 )
 
 
@@ -105,69 +103,73 @@ def add_bottom_numbers(ax, diff_value: float, rmse_value: float, unit: str, font
     )
 
 
-@lru_cache
-def load_range_table(path): # caches csv
-    return pd.read_csv(path)
-
 def get_slope_range_from_csv(cfg, csv_file: str, var: str, plev: int | None):
-    """
-    read slope range from CSV for given variable and pressure level
-    returns vmin & vmax
-    """
     percentile = cfg.plots.bias_map.range_source.percentile
+    return get_range_from_csv(
+        percentile=percentile,
+        csv_file=csv_file,
+        var=var,
+        plev=plev,
+        prefix="slope"
+    )
 
-    if not os.path.exists(csv_file):
-        raise FileNotFoundError(
-            f"Required CSV file for computing the bias maps not found:\n{csv_file}\n"
-            "Run the range_summary script first (python -m evaluation.range_summary) to generate it and ensure that bias_map.yaml receives the correct path."
-        )
+#     """
+#     read slope range from CSV for given variable and pressure level
+#     returns vmin & vmax
+#     """
 
-    df = load_range_table(csv_file)
+#     if not os.path.exists(csv_file):
+#         raise FileNotFoundError(
+#             f"Required CSV file for computing the bias maps not found:\n{csv_file}\n"
+#             "Run the range_summary script first (python -m evaluation.range_summary) to generate it and ensure that bias_map.yaml receives the correct path."
+#         )
 
-    # detect variable column name
-    var_col = "variable" if "variable" in df.columns else "var"
-    df = df[df[var_col] == var]
+#     df = load_range_table(csv_file)
 
-    # only filter by pressure level if one is requested
-    if plev is not None:
-        if "plev_pa" not in df.columns or "plev_hpa" not in df.columns:
-            raise ValueError(
-                f"Pressure-level variable requested (plev={plev}), but CSV does not contain "
-                f"'plev_pa' and 'plev_hpa'. Available columns: {list(df.columns)}"
-            )
+#     # detect variable column name
+#     var_col = "variable" if "variable" in df.columns else "var"
+#     df = df[df[var_col] == var]
 
-        # decide whether user input is Pa or hPa; if available values are in Pa and input < 2000, interpret as hPa
-        plev_pa = accept_Pa_and_hPa(plev, df["plev_pa"].dropna().values)
+#     # only filter by pressure level if one is requested
+#     if plev is not None:
+#         if "plev_pa" not in df.columns or "plev_hpa" not in df.columns:
+#             raise ValueError(
+#                 f"Pressure-level variable requested (plev={plev}), but CSV does not contain "
+#                 f"'plev_pa' and 'plev_hpa'. Available columns: {list(df.columns)}"
+#             )
 
-        if float(plev) < 2000:
-            # user likely gave hPa
-            df = df[df["plev_hpa"] == float(plev)]
-        else:
-            # user gave Pa
-            df = df[df["plev_pa"] == plev_pa]
+#         # decide whether user input is Pa or hPa; if available values are in Pa and input < 2000, interpret as hPa
+#         plev_pa = accept_Pa_and_hPa(plev, df["plev_pa"].dropna().values)
 
-    if df.empty:
-        raise ValueError(f"No range info found in CSV for {var} at plev={plev}")
+#         if float(plev) < 2000:
+#             # user likely gave hPa
+#             df = df[df["plev_hpa"] == float(plev)]
+#         else:
+#             # user gave Pa
+#             df = df[df["plev_pa"] == plev_pa]
 
-    row = df.iloc[0]
+#     if df.empty:
+#         raise ValueError(f"No range info found in CSV for {var} at plev={plev}")
 
-    # choose correct columns
-    if str(percentile) == "99":
-        vmin = row["slope_p01"]
-        vmax = row["slope_p99"]
+#     row = df.iloc[0]
 
-    elif str(percentile) == "95":
-        vmin = row["slope_p05"]
-        vmax = row["slope_p95"]
+#     # choose correct columns
+#     if str(percentile) == "99":
+#         vmin = row["slope_p01"]
+#         vmax = row["slope_p99"]
 
-    elif str(percentile).lower() == "raw":
-        vmin = row["slope_min"]
-        vmax = row["slope_max"]
+#     elif str(percentile) == "95":
+#         vmin = row["slope_p05"]
+#         vmax = row["slope_p95"]
 
-    else:
-        raise ValueError(f"Unknown percentile option: {percentile}")
+#     elif str(percentile).lower() == "raw":
+#         vmin = row["slope_min"]
+#         vmax = row["slope_max"]
 
-    return float(vmin), float(vmax)
+#     else:
+#         raise ValueError(f"Unknown percentile option: {percentile}")
+
+#     return float(vmin), float(vmax)
 
 
 def nice_bin_size(vmin: float, vmax: float, target_bins: int = 12):
