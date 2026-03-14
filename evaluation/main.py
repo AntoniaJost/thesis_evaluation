@@ -2,15 +2,15 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from evaluation.general_functions import normalise_list
-from evaluation.metrics import global_mean, anomalies, bias_map, soi, location_timeseries
+from evaluation.metrics import global_mean, anomalies, bias_map, soi, individual_plots
 
 REGISTRY = {
     "global_mean": global_mean.run,
     "anomalies": anomalies.run,
     "bias_map": bias_map.run,
-    "soi_kde": soi.run,          # use cfg.plots.soi.kde.enabled
+    # "soi_kde": soi.run,          # use cfg.plots.soi.kde.enabled
     "soi": soi.run,
-    "location_timeseries": location_timeseries.run,
+    "individual_plots": individual_plots.run,
 }
 
 @hydra.main(config_path="config", config_name="config", version_base="1.3")

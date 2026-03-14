@@ -8,10 +8,10 @@ defaults:
   - plots@plots.global_mean: global_mean
   - plots@plots.anomalies: anomalies
   - plots@plots.bias_map: bias_map
-  - plots@plots.location_timeseries: location_timeseries
+  - plots@plots.individual_plots: individual_plots
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean", "anomalies", "bias_map"] #"global_mean", "anomalies", "bias_map", "soi", "soi_kde", "location_timeseries"]
+run_plots: ["global_mean", "anomalies", "bias_map"] #"global_mean", "anomalies", "bias_map", "soi", "individual_plots"]
 
 # output behaviour
 out:
