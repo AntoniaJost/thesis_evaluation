@@ -29,7 +29,11 @@ from evaluation.metrics.global_mean import (
 
 def to_anomaly(da: xr.DataArray, baseline_start: str, baseline_end: str):
     base = da.sel(time=slice(baseline_start, baseline_end)).mean("time")
-    return da - base, float(base.values)
+    if base.ndim == 0:
+        base_info = float(base.values)
+    else:
+        base_info = base
+    return da - base, base_info
 
 
 def run(cfg):
