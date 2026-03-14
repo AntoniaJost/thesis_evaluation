@@ -1,6 +1,6 @@
 variable: psl # only works with psl! Do not change
-freq: monthly
-grid: gn
+freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
+grid: gn # only supports gn
 models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k"]
 
 time:
