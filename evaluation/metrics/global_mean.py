@@ -30,10 +30,22 @@ def trend_decay(slope):
     return round(slope * 10, 3) # °C/decade if slope is °C/year
 
 
-def annual_weighted_mean(da_monthly: xr.DataArray) -> xr.DataArray:
-    # annual mean weighted by days in month (handles leap years).
-    days = da_monthly.time.dt.days_in_month
-    return (da_monthly * days).resample(time="1YE").sum() / days.resample(time="1YE").sum()
+def annual_weighted_mean(da: xr.DataArray) -> xr.DataArray:
+    # annual mean from monthly or daily data
+    # - if monthly input: weighted by days in month (handles leap years)
+    # - if daily input: simple annual mean over daily values
+    if da.sizes.get("time", 0) == 0:
+        raise ValueError("annual_weighted_mean received data with no time steps.")
+    if da.sizes.get("time", 0) == 1:
+        return da
+    # estimate if input is daily or monthly data by getting timestep length
+    dt_days = np.median(np.diff(da.time.values).astype("timedelta64[D]").astype(float))
+    # monthly(-like) input
+    if dt_days >= 10:
+        days = da.time.dt.days_in_month
+        return (da * days).resample(time="1YE").sum() / days.resample(time="1YE").sum()
+    # daily(-like) input
+    return da.resample(time="1YE").mean()
 
 
 def area_weighted_global_mean(da: xr.DataArray, lat_name: str = "lat", lon_name: str = "lon") -> xr.DataArray:
