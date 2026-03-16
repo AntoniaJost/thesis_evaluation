@@ -231,16 +231,25 @@ def symmetric_ticks_from_levels(levels, vmin, vmax, keep_every: int = 1, include
 
     step = pos_levels[0]
 
-    # build full tick range
-    pos_ticks = np.arange(step, vmax + step, step) 
-    neg_ticks = np.arange(-step, vmin - step, -step) 
-    pos_ticks = pos_ticks[::keep_every]
-    neg_ticks = neg_ticks[::-1][::keep_every][::-1] 
-    
-    if include_zero:
-        ticks = np.concatenate([neg_ticks, [0], pos_ticks])
-    else:
-        ticks = np.concatenate([neg_ticks, pos_ticks])
+    # get distances from zero
+    max_pos_n = int(np.ceil(vmax / step))
+    max_neg_n = int(np.ceil(abs(vmin) / step))
+
+    if keep_every < 1:
+        raise ValueError(f"keep_every must be >= 1, got {keep_every}")
+
+    # count ticks by distance from zero to ensure symmetry
+    pos_n = np.arange(1, max_pos_n + 1)
+    neg_n = np.arange(1, max_neg_n + 1)
+
+    # keep every nth tick, starting with n = keep_every
+    pos_n = pos_n[pos_n % keep_every == 0]
+    neg_n = neg_n[neg_n % keep_every == 0]
+
+    pos_ticks = pos_n * step
+    neg_ticks = -neg_n * step
+
+    ticks = np.concatenate([neg_ticks[::-1], ([0] if include_zero else []), pos_ticks])
     return ticks
 
 
