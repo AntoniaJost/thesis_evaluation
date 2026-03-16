@@ -215,11 +215,12 @@ def build_zero_bin_levels(vmin: float, vmax: float, bin_size: float):
     return levels
 
 
-def symmetric_ticks_from_levels(levels, vmin, vmax, mode: str | None = None):
+def symmetric_ticks_from_levels(levels, vmin, vmax, keep_every: int = 1, include_zero: bool = True):
     """
     bit of a work around function to make sure that the ticks span symmatrically around
     the white bin -> uses the first positive boundary outside the zero bin as the tick spacing
-    if mode = diff: return every second tick, as bar is smaller
+    keep_every means keep every nth tick away from zero, 1 means keep all
+    include_zero means whether to include 0 as a tick
     """
     levels = np.array(sorted(levels), dtype=float)
 
@@ -231,25 +232,15 @@ def symmetric_ticks_from_levels(levels, vmin, vmax, mode: str | None = None):
     step = pos_levels[0]
 
     # build full tick range
-    pos_ticks = np.arange(0, vmax + step, step)
-    neg_ticks = np.arange(0, vmin - step, -step)
-    ticks = np.unique(np.concatenate([neg_ticks, pos_ticks]))
-
-    # remove 0 for diff plot to not get too crowded
-    ticks = ticks[~np.isclose(ticks, 0)]
-
-    if mode == "diff":
-        pos = ticks[ticks > 0]
-        neg = ticks[ticks < 0]
-
-        # keep every second tick, starting from the one closest to zero
-        pos = pos[::2]
-        neg = neg[::-1][::2][::-1]
-
-        ticks = np.concatenate([neg, pos])
+    pos_ticks = np.arange(step, vmax + step, step) 
+    neg_ticks = np.arange(-step, vmin - step, -step) 
+    pos_ticks = pos_ticks[::keep_every]
+    neg_ticks = neg_ticks[::-1][::keep_every][::-1] 
+    
+    if include_zero:
+        ticks = np.concatenate([neg_ticks, [0], pos_ticks])
     else:
-        # add zero tick for model colourbar
-        ticks = np.concatenate([ticks, [0]])
+        ticks = np.concatenate([neg_ticks, pos_ticks])
     return ticks
 
 
@@ -342,7 +333,7 @@ def run(cfg):
                     bin_size=bin_size,
                 )
                 norm_model = mpl.colors.CenteredNorm(vcenter=0) 
-                ticks_model = symmetric_ticks_from_levels(levels_model, vmin_model, vmax_model)
+                ticks_model = symmetric_ticks_from_levels(levels_model, vmin_model, vmax_model, plot_cfg.ticks_everyX_model, plot_cfg.keep_0_tick_model)
                 coastline_colour = str(plot_cfg.coastline_colour)
                 
                 # ---- colours for difference row
@@ -362,7 +353,7 @@ def run(cfg):
                     bin_size=bin_size_diff,
                 )
                 norm_diff = mpl.colors.CenteredNorm(vcenter=0) 
-                ticks_diff = symmetric_ticks_from_levels(levels_diff, vmin_diff, vmax_diff, "diff")
+                ticks_diff = symmetric_ticks_from_levels(levels_diff, vmin_diff, vmax_diff, plot_cfg.ticks_everyX_diff, plot_cfg.keep_0_tick_diff)
 
                 # ---- plotting ----
                 fig, axes = plt.subplots(

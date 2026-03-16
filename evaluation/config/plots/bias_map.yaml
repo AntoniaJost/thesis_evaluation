@@ -17,6 +17,10 @@ coastline_colour: black # default: black
 cmap_model: seismic # default: RdBu_r
 target_bins: 20 # into how many bins the colourbar is split
 set_size_of_bins: null # options: any int or null; determines the size of every bin (in the unit of the trend of the var per decade)
+ticks_everyX_model: 1 # ticks every x-th bin
+ticks_everyX_diff: 2 # recommendation: greater number for difference as the colourbar is shorter; the code is however forced to set two ticks for the bins that are the first ones around 0. Meaning, if the first coloured bin starts at 0.2, but ticks_everyX_diff: 3, you will get: ..., -0.2, (0), 0.2, 0.8, 1.4, ... if that bothers you, you need to change symmetric_ticks_from_levels()
+keep_0_tick_model: true # whether to have a tick at 0
+keep_0_tick_diff: false # recommend leaving false for diff plot
 
 cmap_diff: BrBG # default: RdBu_r
 target_bins_diff: 20
