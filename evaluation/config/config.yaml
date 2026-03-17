@@ -4,14 +4,14 @@ defaults:
   - datasets
   - variables
   - periods
-  - plots@plots.soi: soi # load config/plots/soi.yaml and put its content under key plots.soi
+  - plots@plots.soi: soi
   - plots@plots.global_mean: global_mean
   - plots@plots.anomalies: anomalies
   - plots@plots.bias_map: bias_map
   - plots@plots.individual_plots: individual_plots
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean", "anomalies", "bias_map"] #"global_mean", "anomalies", "bias_map", "soi", "individual_plots"]
+run_plots: ["global_mean", "anomalies", "bias_map", "soi", "individual_plots"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots"]
 
 # output behaviour
 out:
@@ -36,8 +36,11 @@ pattern:
   monthly: "{var}_Amon_{modelname}_aimip_r*i1p1f1_gn_*.nc"
   daily:   "{var}_day_{modelname}_aimip_r*i1p1f1_gn_*.nc"
 
-
 members: ["member1","member2","member3","member4","member5"] 
 
 print_config: false
 
+#### The following parameters are only relevant for calculating the statistics. All scripts, other than range_summary.py will ignore it. ####
+range_summary:
+  models_to_process: ["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]
+  tag: ""
