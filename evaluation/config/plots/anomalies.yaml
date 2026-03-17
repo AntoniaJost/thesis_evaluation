@@ -16,8 +16,6 @@ baseline:
 figsize: [11.5, 4.8]
 title: null # e.g. "Global Annual Mean {long_name} Anomaly ({var})"
 
-# unit_out: "°C"
-
 ticks:
   major: 10
   minor: 5
