@@ -8,7 +8,6 @@ REGISTRY = {
     "global_mean": global_mean.run,
     "anomalies": anomalies.run,
     "bias_map": bias_map.run,
-    # "soi_kde": soi.run,          # use cfg.plots.soi.kde.enabled
     "soi": soi.run,
     "individual_plots": individual_plots.run,
 }
