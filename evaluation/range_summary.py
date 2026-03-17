@@ -141,6 +141,12 @@ def write_model_minus_era5_rows(cfg, path: str):
         del era5_full
 
         for model_name, model_cfg in cfg.datasets.models.items():
+            if (
+                cfg.range_summary.models_to_process is not None
+                and model_name not in cfg.range_summary.models_to_process
+            ):
+                continue
+
             for member in cfg.members:
 
                 sample = open_full_model_da(
