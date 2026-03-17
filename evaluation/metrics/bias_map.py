@@ -113,64 +113,6 @@ def get_slope_range_from_csv(cfg, csv_file: str, var: str, plev: int | None):
         prefix="slope"
     )
 
-#     """
-#     read slope range from CSV for given variable and pressure level
-#     returns vmin & vmax
-#     """
-
-#     if not os.path.exists(csv_file):
-#         raise FileNotFoundError(
-#             f"Required CSV file for computing the bias maps not found:\n{csv_file}\n"
-#             "Run the range_summary script first (python -m evaluation.range_summary) to generate it and ensure that bias_map.yaml receives the correct path."
-#         )
-
-#     df = load_range_table(csv_file)
-
-#     # detect variable column name
-#     var_col = "variable" if "variable" in df.columns else "var"
-#     df = df[df[var_col] == var]
-
-#     # only filter by pressure level if one is requested
-#     if plev is not None:
-#         if "plev_pa" not in df.columns or "plev_hpa" not in df.columns:
-#             raise ValueError(
-#                 f"Pressure-level variable requested (plev={plev}), but CSV does not contain "
-#                 f"'plev_pa' and 'plev_hpa'. Available columns: {list(df.columns)}"
-#             )
-
-#         # decide whether user input is Pa or hPa; if available values are in Pa and input < 2000, interpret as hPa
-#         plev_pa = accept_Pa_and_hPa(plev, df["plev_pa"].dropna().values)
-
-#         if float(plev) < 2000:
-#             # user likely gave hPa
-#             df = df[df["plev_hpa"] == float(plev)]
-#         else:
-#             # user gave Pa
-#             df = df[df["plev_pa"] == plev_pa]
-
-#     if df.empty:
-#         raise ValueError(f"No range info found in CSV for {var} at plev={plev}")
-
-#     row = df.iloc[0]
-
-#     # choose correct columns
-#     if str(percentile) == "99":
-#         vmin = row["slope_p01"]
-#         vmax = row["slope_p99"]
-
-#     elif str(percentile) == "95":
-#         vmin = row["slope_p05"]
-#         vmax = row["slope_p95"]
-
-#     elif str(percentile).lower() == "raw":
-#         vmin = row["slope_min"]
-#         vmax = row["slope_max"]
-
-#     else:
-#         raise ValueError(f"Unknown percentile option: {percentile}")
-
-#     return float(vmin), float(vmax)
-
 
 def nice_bin_size(vmin: float, vmax: float, target_bins: int = 12):
     """
