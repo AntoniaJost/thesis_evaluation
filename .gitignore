@@ -1,4 +1,9 @@
-outputs/
+outputs/*
+# allow to share range_summary
+!outputs/range_summary/
+outputs/range_summary/*
+!outputs/range_summary/range_summary_compact*.csv
+!outputs/range_summary/model_minus_era5_summary_by_var_plev*.csv
 __init__.py
 __pycache__
 *.err
