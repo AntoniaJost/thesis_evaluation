@@ -5,6 +5,7 @@ datasets:
     pattern: "ERA5_1x1_{var}_1978_2025.nc"
 
   models:
+  # as it can be seen in config.yaml, the modelname has to be the one used in the file name; proper nane is what will be written in the plots
     forced_sst:
       root: /work/bk1450/a270220/cmorised_awm/forced_sst
       modelname: AWGsst0K
