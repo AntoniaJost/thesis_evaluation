@@ -1,4 +1,4 @@
-# The following script has been written by ChatGPT to provide a fast overview of the min and max values of all datasets.
+# The following script has been written by ChatGPT to provide a fast overview of the min and max values of all datasets. It uses, however, functions and code that have been written by me before and are used in the evaluation.main, but needed some little changes to work for this csv summary idea, that's why they have been rewritten. This is definitely not the nicest and best script, but it works. As it only serves as a helper for getting the plotting ranges for the main calculations, I did not spend a lot of time on this. 
 
 from __future__ import annotations
 
@@ -18,8 +18,6 @@ from evaluation.general_functions import (
 
 from evaluation.metrics.bias_map import compute_slope_per_gridpoint
 
-
-TAG = "" #"_with_slopes_v3"
 
 def file_exists_skip(path: str, label: str) -> bool:
     """
@@ -45,6 +43,19 @@ def filter_target_plevs(df: pd.DataFrame) -> pd.DataFrame:
     Keep surface variables (plev_pa is NaN) and selected target pressure levels.
     """
     return df[(df["plev_pa"].isna()) | (df["plev_pa"].isin(TARGET_PLEVS))].copy()
+
+
+def normalise_monthly_time(da: xr.DataArray) -> xr.DataArray:
+    """
+    Replace each timestamp by the first day of its month at 00:00,
+    so monthly data with different timestamp conventions can align.
+    """
+    if "time" not in da.coords:
+        return da
+
+    t = pd.to_datetime(da["time"].values)
+    t_month = t.to_period("M").to_timestamp(how="start")
+    return da.assign_coords(time=t_month)
 
 
 def compute_compact_summary(df_subset: pd.DataFrame) -> pd.DataFrame:
@@ -111,7 +122,88 @@ def compute_compact_summary(df_subset: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values(["var", "plev_pa"], na_position="first")
 
 
-def write_compact_summaries(csv_path: str, outdir: str, tag: str = ""):
+def write_model_minus_era5_rows(cfg, path: str):
+    """
+    Build summary rows from actual model-minus-ERA5 difference fields
+    and append them directly to CSV so progress is not lost if the job crashes.
+    """
+    allowed_vars = list(cfg.variables.allowed)
+
+    for var in allowed_vars:
+        meta = cfg.variables.meta.get(var, None)
+        long_name = meta.long_name if meta else var
+        unit_default = meta.unit if meta else ""
+
+        print(f"\nBuilding model-minus-ERA5 rows for var={var}")
+
+        era5_full = open_full_era5_da(cfg, var)
+        era5_plevs = get_all_plevs(era5_full)
+        del era5_full
+
+        for model_name, model_cfg in cfg.datasets.models.items():
+            for member in cfg.members:
+
+                sample = open_full_model_da(
+                    model_cfg=model_cfg,
+                    cfg=cfg,
+                    member=member,
+                    var=var,
+                    modelname=model_cfg.modelname,
+                    freq="monthly",
+                    grid="gn",
+                )
+                model_plevs = get_all_plevs(sample)
+                del sample
+
+                common_plevs = sorted(
+                    set(era5_plevs).intersection(set(model_plevs)),
+                    key=lambda x: (-999 if x is None else x)
+                )
+
+                for plev in common_plevs:
+                    print(f" diff rows: {model_name} {member} var={var} plev={plev}")
+
+                    da_era5 = open_full_era5_da(cfg, var)
+                    da_era5 = select_plev(da_era5, plev)
+                    da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_default)
+
+                    da_model = open_full_model_da(
+                        model_cfg=model_cfg,
+                        cfg=cfg,
+                        member=member,
+                        var=var,
+                        modelname=model_cfg.modelname,
+                        freq="monthly",
+                        grid="gn",
+                    )
+                    da_model = select_plev(da_model, plev)
+                    da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
+
+                    da_model = normalise_monthly_time(da_model)
+                    da_era5 = normalise_monthly_time(da_era5)
+                    da_model, da_era5 = xr.align(da_model, da_era5, join="inner")
+
+                    if da_model.sizes.get("time", 0) == 0:
+                        print(f"  skipping {model_name} {member} {var} plev={plev}: no overlapping time after alignment")
+                        continue
+
+                    diff_da = da_model - da_era5
+
+                    row = build_summary_row(
+                        diff_da,
+                        dataset_type="model_minus_era5",
+                        dataset_name=model_name,
+                        member=member,
+                        var=var,
+                        long_name=long_name,
+                        unit=unit_here,
+                        plev=plev,
+                    )
+
+                    append_row_csv(row, path)
+
+
+def write_compact_summaries(cfg, csv_path: str, outdir: str, tag: str = ""):
     """
     Read the full summary CSV and write:
       1) compact summary across all datasets
@@ -119,6 +211,7 @@ def write_compact_summaries(csv_path: str, outdir: str, tag: str = ""):
     Only computes files that do not already exist.
     """
     compact_all_path = os.path.join(outdir, f"range_summary_compact{tag}.csv")
+    model_minus_era5_rows_path = os.path.join(outdir, f"model_minus_era5_rows{tag}.csv")
     model_minus_era5_path = os.path.join(
         outdir,
         f"model_minus_era5_summary_by_var_plev{tag}.csv"
@@ -145,38 +238,24 @@ def write_compact_summaries(csv_path: str, outdir: str, tag: str = ""):
     # -------------------------------------------------
     # 2) model-minus-ERA5 compact summary
     # -------------------------------------------------
+    if not os.path.exists(model_minus_era5_rows_path):
+        write_model_minus_era5_rows(cfg, model_minus_era5_rows_path)
+
+        if os.path.exists(model_minus_era5_rows_path):
+            print(f"Saved model-minus-ERA5 full rows: {model_minus_era5_rows_path}")
+        else:
+            print("No model-minus-ERA5 rows file was created.")
+    else:
+        print(f"Skipping existing model-minus-ERA5 full rows: {os.path.basename(model_minus_era5_rows_path)}")
+
     if not os.path.exists(model_minus_era5_path):
-        model_summary = compute_compact_summary(df[df["dataset_type"] == "model"])
-        era5_summary = compute_compact_summary(df[df["dataset_type"] == "era5"])
+        if not os.path.exists(model_minus_era5_rows_path):
+            print("Skipping model-minus-ERA5 summary because no diff rows file exists.")
+            return
+        diff_df = pd.read_csv(model_minus_era5_rows_path)
+        diff_df = filter_target_plevs(diff_df)
 
-        diff = model_summary.merge(
-            era5_summary,
-            on=["var", "plev_pa"],
-            suffixes=("_model", "_era5")
-        )
-
-        value_cols = [
-            c for c in model_summary.columns
-            if c not in ["var", "plev_pa", "plev_hpa"]
-        ]
-
-        rows = []
-
-        for _, r in diff.iterrows():
-            row = {
-                "var": r["var"],
-                "plev_pa": r["plev_pa"],
-                "plev_hpa": r["plev_hpa_model"],
-            }
-
-            for col in value_cols:
-                row[col] = r[f"{col}_model"] - r[f"{col}_era5"]
-
-            rows.append(row)
-
-        model_minus_era5 = pd.DataFrame(rows).sort_values(
-            ["var", "plev_pa"], na_position="first"
-        )
+        model_minus_era5 = compute_compact_summary(diff_df)
         model_minus_era5.to_csv(model_minus_era5_path, index=False)
         print(f"Saved model-minus-ERA5 summary: {model_minus_era5_path}")
     else:
@@ -393,6 +472,7 @@ def build_summary_row(
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def main(cfg):
 
+    TAG = str(cfg.range_summary.tag)
     outdir = os.path.join(
         hydra.utils.get_original_cwd(),
         cfg.out.dir,
@@ -450,7 +530,8 @@ def main(cfg):
             # -------------------------------------------------
 
             for model_name, model_cfg in cfg.datasets.models.items():
-
+                if cfg.range_summary.models_to_process is not None and model_name not in cfg.range_summary.models_to_process:
+                    continue
                 for member in cfg.members:
 
                     print(f" Discovering plevs for {model_name} {member}")
@@ -502,7 +583,7 @@ def main(cfg):
                         append_row_csv(row, csv_path)
 
     print("\nWriting compact summary files...")
-    write_compact_summaries(csv_path=csv_path, outdir=outdir, tag=TAG)
+    write_compact_summaries(cfg=cfg, csv_path=csv_path, outdir=outdir, tag=TAG)
     print("All files are there/done.")
 
 if __name__ == "__main__":
