@@ -1,14 +1,14 @@
-variable: tas #[hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
+variable: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
 # if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
-plev: [5000, 10000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
+plev: [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
 grid: gn # only supports gn
-models: ["forced_sst"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
+models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
+map_era5: false # only works for method map; will create same maps for era5; needs at least one model set in models (bug to fix later)
 time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
-
 
 # calc basics
 method: map # options: timeseries, map
@@ -38,7 +38,15 @@ polar:
 # plotting settings
 title: null # e.g. ... ; title may contain {var}, {long_name}, {model}, {proper_model_name}, {member}, {plev}, {plev_hpa}, {method}, {start}, {end}, {time_label} 
 coastline_colour: black
-colour_scheme: seismic
+
+colourbar: 
+  use_custom_bins: true # if false: the following params don't matter and 21 levels will be used for plotting, which may lead to uncommon ticks; if true: uses settings below
+  bin_size: null # null or int; if null (recommended), a function (nice_bin_size()) will determine the best bins depending on the passed desired number of bins
+  target_bins: 20 # only used if bin_size is null
+  tick_every: 2 # ticks at every x-th value
+  include_zero_tick: false # whether to set a tick at 0
+
+colour_scheme: seismic # works best for diverging colourmaps, as we force a white bin around zero
 figsize: null # if null then automatically [9,5] for global map, [8,8] for (ant-)arctic map, [12,4] for timeseries 
 ylabel: null
 xlabel: null
@@ -63,6 +71,6 @@ colours:
     archesweather:    "#E7B7D4"   
 
 range_source:
-  csv_file1: "outputs/range_summary/range_summary_compact.csv"
-  csv_file2: "outputs/range_summary/model_minus_era5_summary_by_var_plev.csv"
+  csv_file1: "outputs/range_summary/range_summary_compact_missingAW.csv"
+  csv_file2: "outputs/range_summary/model_minus_era5_summary_by_var_plev_missingAW.csv"
   percentile: 99 # options: 99, 95, raw; impacts the selection of the min/max values of the colourbar (e.g. 95 uses the 5th and 95th percentile and therefore includes less extremes than option 99 or even less then option "raw")
