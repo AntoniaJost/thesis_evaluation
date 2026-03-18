@@ -1,4 +1,4 @@
-variable: [zg] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
+variable: [tas] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
 # if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
 plev: [50000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
@@ -6,14 +6,21 @@ grid: gn # only supports gn
 models: ["forced_sst"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
 map_era5: false # only works for method map; will create same maps for era5; needs at least one model set in models (bug to fix later)
 time:
-  use_named: TSTP # options: TRP (training period) or TSTP (testing period) or null and set manually
+  use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
 
 # calc basics
 method: map # options: timeseries, map
 time_stat: raw # options: raw (will be monthy or daily, depeding on "freq"), annual_mean, trend (for timeseries this means annual_mean + trend per decade; for map this means just trend per decade)
-difference: true # will calc and plot the difference Model - ERA5
+detrend: # does not work in combination with time_stat: trend 
+  enabled: true   
+  preserve_mean: true # set to true if method = map, otherwise colours will be off
+  base_period: total # options: total or unique (if unique, please set start and end)
+  # only relevant for base_period: unique, otherwise ignored
+  base_start: "1979-01-01"
+  base_end: "1999-12-31"
+difference: false # will calc and plot the difference Model - ERA5
 anomaly: false # will subtract the baseline specified below from the data
 baseline: # will only become relevant if anomaly=true
   start: "1979-01-01"

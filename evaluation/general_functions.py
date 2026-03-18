@@ -437,3 +437,39 @@ def get_range_from_csv(percentile, csv_file: str, var: str, plev: int | None, pr
         raise ValueError(f"Unknown percentile option: {percentile}")
 
     return float(vmin), float(vmax)
+
+
+def detrend_dataarray(da: xr.DataArray, dim: str = "time", start: str = "", end: str = "", preserve_mean: bool = True) -> xr.DataArray:
+    """
+    removes a linear trend along `dim` from an xarray
+    params:
+    da : input data with a time dimension
+    dim : dimension along which to detrend
+    base_period : optional period (start_time, end_time) over which to fit the trend; 
+                  if None, fit over the full available time range
+    preserve_mean : if true, add back the mean of the fitted period so that the detrended
+                    series keeps its average level
+    """
+    if dim not in da.dims:
+        raise ValueError(f"Dimension '{dim}' not found in DataArray dims {da.dims}")
+    # enable option to use only a subset of the (time) period to detrend
+    if start and end:
+        fit_da = da.sel({dim: slice(start, end)})
+        if fit_da.sizes[dim] == 0:
+            raise ValueError(
+                f"No data found in base_period {start} - {end} for detrending."
+            )
+    else:  # if no period is given, the full dataset is used
+        fit_da = da
+    # polyfit along specified dimension
+    polyfit = fit_da.polyfit(dim=dim, deg=1, skipna=True) #deg=1=linear trend
+    coeffs = polyfit.polyfit_coefficients # extract slope and intercept
+    trend = xr.polyval(da[dim], coeffs) # fitted trend for entire dataset
+
+    detrended = da - trend # remove the fitted trend
+
+    # as removing a trend often centres the series around zero, sometimes it's nicer to keep the original average level of the data
+    if preserve_mean:
+        detrended = detrended + da.mean(dim=dim)
+
+    return detrended
