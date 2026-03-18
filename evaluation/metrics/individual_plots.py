@@ -497,6 +497,27 @@ def _get_map_bounds(cfg, plot_cfg, arrays: list[xr.DataArray], var: str, plev, d
     )
 
 
+def _use_zero_centered_bins(plot_cfg, vmin: float, vmax: float) -> bool:
+    # gets the colourbar mode: centered, linear or auto
+    mode = str(getattr(plot_cfg.colourbar, "mode", "auto")).strip().lower()
+    if mode not in {"auto", "centered", "linear"}:
+        raise ValueError(
+            f"Unknown colourbar mode: {mode}. Use one of: auto, centered, linear"
+        )
+    if mode == "linear":
+        return False
+    if mode == "centered":
+        if not (vmin <= 0 <= vmax):
+            raise ValueError(
+                f"colourbar.mode='centered' requires 0 to lie within the plotting range, "
+                f"but got vmin={vmin}, vmax={vmax}. "
+                "Use mode='linear' for absolute fields like geopotential height."
+            )
+        return True
+    # auto
+    return bool(plot_cfg.difference or plot_cfg.anomaly or (vmin <= 0 <= vmax))
+
+
 def _map_levels_and_ticks(vmin: float, vmax: float, plot_cfg) -> tuple[np.ndarray | None, np.ndarray | None]:
     """
     determines discrete colourbar bins (levels) and ticks for map plots when use_custom_bins are enabled
@@ -512,17 +533,37 @@ def _map_levels_and_ticks(vmin: float, vmax: float, plot_cfg) -> tuple[np.ndarra
     else:
         bin_size = float(cbar_cfg.bin_size)
 
-    # constructs symmetric levels with a white bin around zero
-    levels = build_zero_bin_levels(vmin=vmin, vmax=vmax, bin_size=bin_size) 
-    # computes symmetric colourbar ticks based on the levels
-    ticks = symmetric_ticks_from_levels(
-        levels,
-        vmin,
-        vmax,
-        keep_every=int(cbar_cfg.tick_every),
-        include_zero=bool(cbar_cfg.include_zero_tick),
-    )
+    zero_centered = _use_zero_centered_bins(plot_cfg, vmin, vmax)
+
+    if zero_centered:
+        # constructs symmetric levels with a white bin around zero
+        levels = build_zero_bin_levels(vmin=vmin, vmax=vmax, bin_size=bin_size) 
+        # computes symmetric colourbar ticks based on the levels
+        ticks = symmetric_ticks_from_levels(
+            levels,
+            vmin,
+            vmax,
+            keep_every=int(cbar_cfg.tick_every),
+            include_zero=bool(cbar_cfg.include_zero_tick),
+        )
+    else:
+        levels = np.arange(vmin, vmax + bin_size, bin_size)
+        if levels[-1] < vmax:
+            levels = np.append(levels, vmax)
+        tick_every = int(cbar_cfg.tick_every)
+        ticks = levels[::tick_every]
+        if ticks[-1] != levels[-1]:
+            ticks = np.append(ticks, levels[-1])
+
     return levels, ticks
+
+
+def _get_map_norm(plot_cfg, vmin, vmax):
+    # gets the correct norm for the colourbar, depending if bins shall be centered around zero
+    zero_centered = _use_zero_centered_bins(plot_cfg, vmin, vmax)
+    if zero_centered:
+        return mpl.colors.CenteredNorm(vcenter=0)
+    return mpl.colors.Normalize(vmin=vmin, vmax=vmax)
 
 
 # ---- PLOT LAYOUT HELPERS ----
@@ -599,7 +640,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
             lon_cyc,
             da["lat"].values,
             data_cyc,
-            norm=mpl.colors.CenteredNorm(vcenter=0),
+            norm=_get_map_norm(plot_cfg, vmin, vmax), #mpl.colors.CenteredNorm(vcenter=0),
             levels=levels, #np.linspace(vmin, vmax, 21),
             cmap=str(plot_cfg.colour_scheme),
             extend="both",
@@ -620,7 +661,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
             da["lon"].values,
             da["lat"].values,
             da.values,
-            norm=mpl.colors.CenteredNorm(vcenter=0),
+            norm=_get_map_norm(plot_cfg, vmin, vmax), #mpl.colors.CenteredNorm(vcenter=0),
             levels=levels, #np.linspace(vmin, vmax, 21),
             cmap=str(plot_cfg.colour_scheme),
             extend="both",
