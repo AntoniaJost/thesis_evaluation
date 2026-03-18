@@ -24,6 +24,7 @@ from evaluation.general_functions import (
     open_model_da,
     plev_strings,
     should_compute_output,
+    detrend_dataarray,
 )
 from evaluation.metrics.global_mean import(annual_weighted_mean, lin_reg, trend_decay)
 from evaluation.metrics.anomalies import(to_anomaly)
@@ -315,9 +316,42 @@ def _area_mean(da: xr.DataArray) -> xr.DataArray:
 
 
 # ---- DATA TRANSFORMATION HELPERS ----
-def _prepare_field(da: xr.DataArray, plot_cfg, method: str) -> xr.DataArray:
+def _maybe_detrend(da: xr.DataArray, plot_cfg, start: str, end: str) -> xr.DataArray:
+    # apply detrending if enabled in the config; otherwise return the input unchanged
+    # the trend is always removed along the time dimension
+    if not plot_cfg.detrend.enabled:
+        return da
+    
+    if plot_cfg.detrend.base_period == "unique":
+        start, end = _selection_bounds_for_freq(plot_cfg.detrend.base_start, plot_cfg.detrend.base_end, plot_cfg.freq)
+    elif plot_cfg.detrend.base_period == "total":
+        start = start
+        end = end
+    else:
+        raise ValueError(f"Received invalid option for detrending base period {plot_cfg.detrend.base_period}, only accepts 'unique' or 'total'.")
+    preserve_mean = bool(plot_cfg.detrend.preserve_mean)
+    base_period = plot_cfg.detrend.base_period
+    if base_period is not None:
+        base_period = tuple(base_period)
+    return detrend_dataarray(
+        da,
+        dim="time",
+        start=start,
+        end=end,
+        preserve_mean=preserve_mean,
+    )
+
+
+def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str) -> xr.DataArray:
     """
-    prepares the data array for plotting depending on the configured time statistic (raw, annual_mean, trend) and plotting method (map, timeseries)
+    prepares the data array for plotting depending on the configured time statistic (raw, annual_mean, trend), detrending, and plotting method (map, timeseries)
+    rules for detrending:
+        - raw:
+            * timeseries: detrend after area mean
+            * map: detrend each grid point before time averaging
+        - annual mean:
+            * timeseries: area mean -> annual mean -> detrend
+            * map: anuual mean at each grid point -> detrend annual series per grid point -> mean over time
     """
     stat = _time_stat(plot_cfg) # get "raw, annual_mean, or trend"
     da_loc = _subset_for_location(da, plot_cfg) # create subset if requested
@@ -329,10 +363,13 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str) -> xr.DataArray:
             # map uses the temporal mean of the selected period
             if da_loc.sizes.get("time", 0) == 0:
                 raise ValueError("No timesteps remain after time selection.")
-            return da_loc.mean(dim="time")
+            da_plot = _maybe_detrend(da_loc, plot_cfg, start, end)
+            return da_plot.mean(dim="time")
         if method == "timeseries":
             # timeseries uses the spatial mean
-            return _area_mean(da_loc)
+            da_series = _area_mean(da_loc)
+            da_series = _maybe_detrend(da_series, plot_cfg, start, end)
+            return da_series
 
     elif stat == "annual_mean":
         if method == "map":
@@ -340,11 +377,14 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str) -> xr.DataArray:
             da_ann = annual_weighted_mean(da_loc)
             if da_ann.sizes.get("time", 0) == 0:
                 raise ValueError("No annual timesteps remain after aggregation.")
+            da_ann = _maybe_detrend(da_ann, plot_cfg, start, end)
             return da_ann.mean(dim="time")
 
         if method == "timeseries":
             # compute spatial mean first, then annual mean timeseries
-            return annual_weighted_mean(_area_mean(da_loc))
+            da_series = annual_weighted_mean(_area_mean(da_loc))
+            da_series = _maybe_detrend(da_series, plot_cfg, start, end)
+            return da_series
 
     elif stat == "trend":
         if method == "map":
@@ -797,6 +837,15 @@ def _default_title(plot_cfg, method: str, long_name: str, proper_model_name: str
         base_start = _format_time_from_freq(plot_cfg.baseline.start, plot_cfg.freq)
         base_end = _format_time_from_freq(plot_cfg.baseline.end, plot_cfg.freq)
         title += f"\nBaseline removed: mean of {base_start} – {base_end}"
+    # add detrending information as 2nd/3rd line if anomaly is used
+    if plot_cfg.detrend.enabled and plot_cfg.detrend.base_period == "unique":
+        base_start = _format_time_from_freq(plot_cfg.detrend.base_start, plot_cfg.freq)
+        base_end = _format_time_from_freq(plot_cfg.detrend.base_end, plot_cfg.freq)
+        mean = ", mean of entire time period readded" if plot_cfg.detrend.preserve_mean else ""
+        title += f"\nDetrended over {base_start} – {base_end}{mean}"
+    elif plot_cfg.detrend.enabled:
+        mean = ", mean readded" if plot_cfg.detrend.preserve_mean else ""
+        title += f"\nDetrended over entire time period{mean}"
 
     return title
 
@@ -854,7 +903,12 @@ def _output_filename(method: str, var: str, plev_tag: str, model_name: str, memb
         loc_tag = f"box_{lat0_tag}-{lat1_tag}_{lon0_tag}-{lon1_tag}"
     diff_tag = "_minusERA5" if plot_cfg.difference else ""
     anom_tag = "_anom" if plot_cfg.anomaly else ""
-    stat_tag = "_decadalTrend" if stat == "trend" else ""
+    if stat == "trend":
+        stat_tag = "_decadalTrend" 
+    elif plot_cfg.detrend.enabled:
+        stat_tag = "_detrended" 
+    else: 
+        stat_tag = ""
     member = f"_{member}"
     return f"{method}_{var}{plev_tag}_{model_tag}{member}_{loc_tag}{diff_tag}{anom_tag}_{start_tag}-{end_tag}{stat_tag}.png"
 
@@ -901,6 +955,10 @@ def run(cfg):
         print(
             "Skipping ERA5 map in individual_plots because map_era5=true and difference=true (ERA5 - ERA5 will be zero)."
         )
+    if _time_stat(plot_cfg) == "trend" and plot_cfg.detrend.enabled:
+        raise ValueError(
+            "Detrending cannot be used together with time_stat='trend', because that would remove the trend you want to analyse."
+        )
     figsize = _resolve_figsize(plot_cfg, method)
 
     # 2. iterate over variables & pressure levels
@@ -920,7 +978,7 @@ def run(cfg):
             # 3. load and prepare era5 data
             era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
             era5, unit_here = conversion_rules(var, era5, cfg, "era5", unit)
-            era5_prepared = _prepare_field(era5, plot_cfg, method)
+            era5_prepared = _prepare_field(era5, plot_cfg, method, start_sel, end_sel)
             time_label = _time_label(start, end, method, era5, plot_cfg.freq, plot_cfg)
             single_time = pd.Timestamp(start) == pd.Timestamp(end)
 
@@ -944,7 +1002,7 @@ def run(cfg):
                         plev=plev,
                     )
                     da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
-                    prepared = _prepare_field(da_model, plot_cfg, method)
+                    prepared = _prepare_field(da_model, plot_cfg, method, start_sel, end_sel)
                     if plot_cfg.difference:
                         prepared = _subtract_with_time_alignment(prepared, era5_prepared, plot_cfg)
                     member_to_da[member] = prepared

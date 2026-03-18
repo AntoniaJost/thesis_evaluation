@@ -307,6 +307,7 @@ cmorised_awm/
 ```
 
 * Some settings (e.g. colours) are currently tied to specific model names.
+* Detrending maps only shows reasonable colours if detrend.preserve_mean is true.
 
 If you discover additional issues, please open an issue on GitHub.
 
