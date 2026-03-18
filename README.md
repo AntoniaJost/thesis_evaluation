@@ -131,13 +131,13 @@ python -m evaluation.range_summary \
 The resulting CSV files store **consistent min/max ranges** for each variable and pressure level.
 This ensures that plots remain **comparable across models**.
 
-Runtime depends on dataset size. It might take up to ~6 hours for
+Runtime depends on dataset size. It might take up to ~12 hours for
 
   * 6 models
-  * 5 members
-  * 13 variables
+  * with each 5 members
+  * and each 13 variables
 
-If you are evaluating **ArchesWeatherGen**, you may use the precomputed files in `outputs/range_summary` (*will be uploaded soon*).
+If you are evaluating **ArchesWeatherGen**, you may use the precomputed files in `outputs/range_summary`.
 
 If you skip this step, plotting ranges will be determined dynamically.
 
