@@ -1,10 +1,10 @@
-variable: [zg] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
+variable: [tas] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
 # if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
 plev: [50000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
 grid: gn # only supports gn
 models: ["forced_sst","archesweather"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
-map_era5: false # only works for method map; will create same maps for era5; needs at least one model set in models (bug to fix later)
+map_era5: true # only works for method map; will create same maps for era5; needs at least one model set in models (bug to fix later)
 time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
@@ -20,7 +20,7 @@ detrend: # does not work in combination with time_stat: trend
   # only relevant for base_period: unique, otherwise ignored
   base_start: "1979-01-01"
   base_end: "1999-12-31"
-difference: false # will calc and plot the difference Model - ERA5
+difference: true # will calc and plot the difference Model - ERA5
 anomaly: false # will subtract the baseline specified below from the data
 baseline: # will only become relevant if anomaly=true
   start: "1979-01-01"
@@ -30,7 +30,7 @@ only_mean: false # if this is set to true, include_ensemble_mean_as_member also 
 
 # map basics
 location: global # options: arctic, antarctic, individual, global (=null)
-global_centre: 0 # only relevant if location=global, longitude that is in centre (0≈Africa, 180≈pacific ocean)
+global_centre: 180 # only relevant if location=global, longitude that is in centre (0≈Africa, 180≈pacific ocean)
 individual: # will only become relevant if location=individual
   # UPPER LEFT corner of bounding box
   lat0: 38.34 # [90, -90]
@@ -54,10 +54,10 @@ colourbar:
   tick_every: 2 # ticks at every x-th value
   include_zero_tick: true # whether to set a tick at 0
   mode: auto # options: centered (white at 0), linear (for absolute fields), auto (will automatically choose "centered" for diff or anomaly plots if vmin <= 0 <= vmax, otherwise "linear")
-  manual_vmin: -40
-  manual_vmax: 80
+  manual_vmin: null # if set, they will overwrite everything; options: null or float
+  manual_vmax: null # options: null or float
 
-colour_scheme: Spectral_r # case-sensitive! works best for diverging colourmaps, as we force a white bin around zero
+colour_scheme: bwr #Spectral_r # case-sensitive! works best for diverging colourmaps, as we force a white bin around zero
 figsize: null # if null then automatically [9,5] for global map, [8,8] for (ant-)arctic map, [12,4] for timeseries 
 ylabel: null
 xlabel: null

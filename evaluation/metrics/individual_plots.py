@@ -610,7 +610,7 @@ def _get_map_norm(plot_cfg, vmin, vmax):
 def _projection_and_extent(plot_cfg):
     # chooses the map projection and geographic extent based on the location mode in the config
     location = _normalise_location(plot_cfg.location)
-    centre = float(getattr(plot_cfg.global_centre, 0))
+    centre = float(getattr(plot_cfg, "global_centre", 0))
     if location is None: # global = Robinson projection
         return ccrs.Robinson(central_longitude=centre), None
     if location == "individual":
@@ -910,7 +910,7 @@ def _output_filename(method: str, var: str, plev_tag: str, model_name: str, memb
         stat_tag = "_detrended" 
     else: 
         stat_tag = ""
-    member = f"_{member}"
+    member = f"_{member}" if member else ""
     return f"{method}_{var}{plev_tag}_{model_tag}{member}_{loc_tag}{diff_tag}{anom_tag}_{start_tag}-{end_tag}{stat_tag}.png"
 
 
