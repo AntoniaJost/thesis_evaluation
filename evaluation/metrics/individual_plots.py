@@ -390,7 +390,8 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
         if method == "map":
             # compute per-gridpoint linear trend (converted to decadal trend)
             if da_loc.sizes.get("time", 0) < 2:
-                raise ValueError("Need at least 2 timesteps to compute a trend map.")
+                raise ValueError(f"Need at least 2 timesteps to compute a trend map."
+                                 "\n Frequent error: check if you are trying to access data for free_run_prediction that is before its start 2015.")
             return compute_slope_per_gridpoint(da_loc) * 10.0
 
         if method == "timeseries":
@@ -961,6 +962,7 @@ def run(cfg):
             "Detrending cannot be used together with time_stat='trend', because that would remove the trend you want to analyse."
         )
     figsize = _resolve_figsize(plot_cfg, method)
+    add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""
 
     # 2. iterate over variables & pressure levels
     for item in iter_vars_and_plevs(cfg, plot_cfg):
@@ -1016,6 +1018,7 @@ def run(cfg):
                     "individual_plots",
                     method,
                     var,
+                    add_dir,
                 )
                 os.makedirs(outdir, exist_ok=True)
                 # 4b. TIMESERIES plotting
@@ -1144,6 +1147,7 @@ def run(cfg):
                     "individual_plots",
                     method,
                     var,
+                    add_dir,
                 )
                 os.makedirs(outdir, exist_ok=True)
                 if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
