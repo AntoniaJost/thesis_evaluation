@@ -1,4 +1,4 @@
-variable: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
+variable: [tas] # options: [hus, psl, siconc, ta, tas, tos, ua, uas, va, vas, wap, zg] (one or multiple)
 # if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
 plev: [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
 freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
@@ -22,6 +22,7 @@ angle: 4 # angle of the "ERA5 trend +xK" label
 
 legend:
   loc: "lower right"
+  inside_plot: false
 
 # colour-blind / red-green blind friendly colours (Okabe-Ito colour palette)
 colours:
@@ -39,4 +40,22 @@ colours:
     forced_sst_4k:   "#7ED1B2"
     free_run_control: "#F4A582"
     free_run_prediction: "#BDBDBD" 
-    archesweather:    "#E7B7D4"   
+    archesweather:    "#E7B7D4"
+    
+# AIMIP COLOURS
+# colours:
+#   base_colours:
+#     forced_sst:       "#D62728" # red 
+#     forced_sst_2k:    "#E69F00" # yellow
+#     forced_sst_4k:    "#009E73" # green
+#     free_run_control: "#7B3294" # purple 
+#     free_run_prediction: "#4D4D4D" # grey
+#     archesweather:     "#0072B2" # blue 
+
+#   colours_light:
+#     forced_sst:       "#FF9896"
+#     forced_sst_2k:    "#F0E442"
+#     forced_sst_4k:    "#7ED1B2"
+#     free_run_control: "#C2A5CF" 
+#     free_run_prediction: "#BDBDBD" 
+#     archesweather:    "#56B4E9" 

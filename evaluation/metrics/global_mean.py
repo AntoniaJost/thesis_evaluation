@@ -194,7 +194,7 @@ def run(cfg):
                         continue
                     ax.plot(years_era5, lrg_era5_by_offset[offset_k], color="black",
                             linewidth=1.2, linestyle="--", alpha=0.7, zorder=6)
-                    label_line_along_slope(ax, years_era5, lrg_era5_by_offset[offset_k], text=f"ERA5 trend +{offset_k}K", angle_boost=plot_cfg.angle, fontsize=8, alpha=0.7)
+                    label_line_along_slope(ax, years_era5, lrg_era5_by_offset[offset_k], text=f"ERA5 trend +{offset_k}°C", angle_boost=plot_cfg.angle, fontsize=8, alpha=0.7)
 
             # model members thin
             for i, model_name in enumerate(plot_cfg.models):
@@ -237,7 +237,10 @@ def run(cfg):
             ax.spines["right"].set_visible(False)
             ax.margins(x=0.01) # slight margin so traces don't touch frame
 
-            ax.legend(loc=plot_cfg.legend.loc, frameon=False, fontsize="x-small", borderaxespad=0.0)
+            if plot_cfg.legend.inside_plot:
+                ax.legend(loc=plot_cfg.legend.loc, frameon=False, fontsize="x-small", borderaxespad=0.0)
+            else:
+                ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=3, frameon=False, fontsize="x-small")
 
             if cfg.out.savefig:
                 fig.savefig(

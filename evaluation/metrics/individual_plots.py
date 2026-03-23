@@ -390,7 +390,8 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
         if method == "map":
             # compute per-gridpoint linear trend (converted to decadal trend)
             if da_loc.sizes.get("time", 0) < 2:
-                raise ValueError("Need at least 2 timesteps to compute a trend map.")
+                raise ValueError(f"Need at least 2 timesteps to compute a trend map."
+                                 "\n Frequent error: check if you are trying to access data for free_run_prediction that is before its start 2015.")
             return compute_slope_per_gridpoint(da_loc) * 10.0
 
         if method == "timeseries":
@@ -610,8 +611,9 @@ def _get_map_norm(plot_cfg, vmin, vmax):
 def _projection_and_extent(plot_cfg):
     # chooses the map projection and geographic extent based on the location mode in the config
     location = _normalise_location(plot_cfg.location)
+    centre = float(getattr(plot_cfg, "global_centre", 0))
     if location is None: # global = Robinson projection
-        return ccrs.Robinson(), None
+        return ccrs.Robinson(central_longitude=centre), None
     if location == "individual":
         lon0 = _wrap_lon_360(float(plot_cfg.individual.lon0))
         lon1 = _wrap_lon_360(float(plot_cfg.individual.lon1))
@@ -630,7 +632,7 @@ def _projection_and_extent(plot_cfg):
         return ccrs.NorthPolarStereo(), [-180, 180, float(plot_cfg.polar.min_latitude), 90] # arctic projection
     if location == "antarctic":
         return ccrs.SouthPolarStereo(), [-180, 180, -90, float(plot_cfg.polar.max_latitude)] # antarctic projection
-    return ccrs.Robinson(), None
+    return ccrs.Robinson(central_longitude=centre), None
 
 
 def _resolve_figsize(plot_cfg, method: str):
@@ -909,7 +911,7 @@ def _output_filename(method: str, var: str, plev_tag: str, model_name: str, memb
         stat_tag = "_detrended" 
     else: 
         stat_tag = ""
-    member = f"_{member}"
+    member = f"_{member}" if member else ""
     return f"{method}_{var}{plev_tag}_{model_tag}{member}_{loc_tag}{diff_tag}{anom_tag}_{start_tag}-{end_tag}{stat_tag}.png"
 
 
@@ -960,6 +962,7 @@ def run(cfg):
             "Detrending cannot be used together with time_stat='trend', because that would remove the trend you want to analyse."
         )
     figsize = _resolve_figsize(plot_cfg, method)
+    add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""
 
     # 2. iterate over variables & pressure levels
     for item in iter_vars_and_plevs(cfg, plot_cfg):
@@ -1015,6 +1018,7 @@ def run(cfg):
                     "individual_plots",
                     method,
                     var,
+                    add_dir,
                 )
                 os.makedirs(outdir, exist_ok=True)
                 # 4b. TIMESERIES plotting
@@ -1064,16 +1068,20 @@ def run(cfg):
                 # 4c. MAP plotting
                 else:
                     arrays = list(member_to_plot.values())
-                    vmin, vmax = _get_map_bounds(
-                        cfg,
-                        plot_cfg,
-                        arrays,
-                        var,
-                        plev,
-                        difference=bool(plot_cfg.difference),
-                        anomaly=bool(plot_cfg.anomaly),
-                        single_time=single_time,
-                    )
+                    if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
+                        vmin = float(plot_cfg.colourbar.manual_vmin)
+                        vmax = float(plot_cfg.colourbar.manual_vmax)
+                    else:
+                        vmin, vmax = _get_map_bounds(
+                            cfg,
+                            plot_cfg,
+                            arrays,
+                            var,
+                            plev,
+                            difference=bool(plot_cfg.difference),
+                            anomaly=bool(plot_cfg.anomaly),
+                            single_time=single_time,
+                        )
                     print(f"diff: {bool(plot_cfg.difference)}, anomaly: {bool(plot_cfg.anomaly)}, vmin: {vmin}, vmax: {vmax}")
                     if plot_cfg.colourbar.use_custom_bins:
                         levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
@@ -1139,19 +1147,23 @@ def run(cfg):
                     "individual_plots",
                     method,
                     var,
+                    add_dir,
                 )
                 os.makedirs(outdir, exist_ok=True)
-
-                vmin, vmax = _get_map_bounds(
-                    cfg,
-                    plot_cfg,
-                    [era5_prepared],
-                    var,
-                    plev,
-                    difference=False,
-                    anomaly=bool(plot_cfg.anomaly),
-                    single_time=single_time,
-                )
+                if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
+                    vmin = float(plot_cfg.colourbar.manual_vmin)
+                    vmax = float(plot_cfg.colourbar.manual_vmax)
+                else:
+                    vmin, vmax = _get_map_bounds(
+                        cfg,
+                        plot_cfg,
+                        [era5_prepared],
+                        var,
+                        plev,
+                        difference=False,
+                        anomaly=bool(plot_cfg.anomaly),
+                        single_time=single_time,
+                    )
 
                 if plot_cfg.colourbar.use_custom_bins:
                     levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
