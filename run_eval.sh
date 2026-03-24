@@ -28,36 +28,36 @@ set -euo pipefail
 
 # ---- GLOBAL MEAN ----
 # full period
-python -m evaluation.main \
-  run_plots='["global_mean"]' \
-  'out.overwrite=true' \
-  'plots.global_mean.variable=tas' \
-  'plots.global_mean.plev=850' \
-  'plots.global_mean.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
-  'plots.global_mean.show_era5_offset_trends=true' \
-  'plots.global_mean.legend.inside_plot=false'
+# python -m evaluation.main \
+#   run_plots='["global_mean"]' \
+#   'out.overwrite=true' \
+#   'plots.global_mean.variable=tas' \
+#   'plots.global_mean.plev=850' \
+#   'plots.global_mean.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+#   'plots.global_mean.show_era5_offset_trends=true' \
+#   'plots.global_mean.legend.inside_plot=false'
 
-# TRP
-python -m evaluation.main \
-  run_plots='["global_mean"]' \
-  'out.overwrite=true' \
-  'plots.global_mean.variable=tas' \
-  'plots.global_mean.plev=850' \
-  'plots.global_mean.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
-  'plots.global_mean.time.use_named=TRP' \
-  'plots.global_mean.show_era5_offset_trends=true' \
-  'plots.global_mean.legend.inside_plot=false'
+# # TRP
+# python -m evaluation.main \
+#   run_plots='["global_mean"]' \
+#   'out.overwrite=true' \
+#   'plots.global_mean.variable=tas' \
+#   'plots.global_mean.plev=850' \
+#   'plots.global_mean.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+#   'plots.global_mean.time.use_named=TRP' \
+#   'plots.global_mean.show_era5_offset_trends=true' \
+#   'plots.global_mean.legend.inside_plot=false'
   
-# TSTP
-python -m evaluation.main \
-  run_plots='["global_mean"]' \
-  'out.overwrite=true' \
-  'plots.global_mean.variable=tas' \
-  'plots.global_mean.plev=850' \
-  'plots.global_mean.models=["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
-  'plots.global_mean.time.use_named=TSTP' \
-  'plots.global_mean.show_era5_offset_trends=true' \
-  'plots.global_mean.legend.inside_plot=false' 
+# # TSTP
+# python -m evaluation.main \
+#   run_plots='["global_mean"]' \
+#   'out.overwrite=true' \
+#   'plots.global_mean.variable=tas' \
+#   'plots.global_mean.plev=850' \
+#   'plots.global_mean.models=["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+#   'plots.global_mean.time.use_named=TSTP' \
+#   'plots.global_mean.show_era5_offset_trends=true' \
+#   'plots.global_mean.legend.inside_plot=false' 
 
 # ---- ANOMALIES ----
 # python -m evaluation.main \
@@ -104,6 +104,57 @@ python -m evaluation.main \
 #   'plots.bias_map.keep_0_tick_diff=true' \
 #   'plots.bias_map.range_source.suffix="_sst0+AW+sst2+sst4"' \
 #   'plots.bias_map.range_source.percentile=99'
+
+# ---- DIFFERENCE MAPS WITH RAW VALUES ----
+# TRP
+python -m evaluation.main \
+  'run_plots=["diff_map_raw"]' \
+  'out.overwrite=true' \
+  'plots.diff_map_raw.variable=tas' \
+  'plots.diff_map_raw.plev=500' \
+  'plots.diff_map_raw.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+  'plots.diff_map_raw.time.use_named=TRP' \
+  'plots.diff_map_raw.ticks_everyX_model=1' \
+  'plots.diff_map_raw.keep_0_tick_diff=true' \
+  'plots.diff_map_raw.global_centre=0' \
+  'plots.diff_map_raw.detrend.enabled=true' \
+  'plots.diff_map_raw.detrend.preserve_mean=true' \
+  'plots.diff_map_raw.special_outdir="tas/test"' \
+  'plots.diff_map_raw.range_source.suffix="_sst0+AW+sst2+sst4"' \
+  'plots.diff_map_raw.range_source.percentile=99'
+
+# TSTP
+python -m evaluation.main \
+  'run_plots=["diff_map_raw"]' \
+  'out.overwrite=true' \
+  'plots.diff_map_raw.variable=tas' \
+  'plots.diff_map_raw.plev=500' \
+  'plots.diff_map_raw.models=["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+  'plots.diff_map_raw.time.use_named=TSTP' \
+  'plots.diff_map_raw.ticks_everyX_model=1' \
+  'plots.diff_map_raw.keep_0_tick_diff=true' \
+  'plots.diff_map_raw.global_centre=0' \
+  'plots.diff_map_raw.detrend.enabled=true' \
+  'plots.diff_map_raw.detrend.preserve_mean=true' \
+  'plots.diff_map_raw.special_outdir="tas/test"' \
+  'plots.diff_map_raw.range_source.suffix="_sst0+AW+sst2+sst4"' \
+  'plots.diff_map_raw.range_source.percentile=99'
+
+# full period
+python -m evaluation.main \
+  'run_plots=["diff_map_raw"]' \
+  'out.overwrite=true' \
+  'plots.diff_map_raw.variable=tas' \
+  'plots.diff_map_raw.plev=500' \
+  'plots.diff_map_raw.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+  'plots.diff_map_raw.ticks_everyX_model=1' \
+  'plots.diff_map_raw.keep_0_tick_diff=true' \
+  'plots.diff_map_raw.global_centre=0' \
+  'plots.diff_map_raw.detrend.enabled=true' \
+  'plots.diff_map_raw.detrend.preserve_mean=true' \
+  'plots.diff_map_raw.special_outdir="tas/test"' \
+  'plots.diff_map_raw.range_source.suffix="_sst0+AW+sst2+sst4"' \
+  'plots.diff_map_raw.range_source.percentile=99'
 
 # ---- SOI ----
 # runs within minutes for all models at once
