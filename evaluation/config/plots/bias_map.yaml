@@ -34,6 +34,8 @@ cbar_label_diff: "Model - ERA5"
 
 add_numbers: true # calcs global RMSE and difference
 
+special_outdir: null # options: string after outputs/bias_map or null
+
 range_source:
   suffix: "_ALL" # options: _ALL, _FRc+FR15, _sst0+AW, _sst0+AW+FRc+FR15, _sst0+AW+sst2+sst4, _sst2+sst4
   csv_file1: "outputs/range_summary/range_summary_compact${.suffix}.csv"
