@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=diff_tas
-#SBATCH --time=01:00:00
+#SBATCH --job-name=zm_sst0
+#SBATCH --time=08:00:00
 #SBATCH --partition=compute
 #SBATCH --account=bk1450
 #SBATCH --ntasks=1
@@ -19,6 +19,10 @@ set -euo pipefail
 # python -m evaluation.range_summary \
 #   'range_summary.models_to_process=["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
 #   'range_summary.tag=_ALL'
+
+# python -m evaluation.range_plevs \
+#   'range_summary.models_to_process=["forced_sst_2k","forced_sst_4k"]' \
+#   'range_summary.tag=_sst2+sst4'
 
 # options: ["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]
 
@@ -110,23 +114,23 @@ set -euo pipefail
 
 # ---- DIFFERENCE MAPS WITH RAW VALUES ----
 # TRP
-python -m evaluation.main \
-  'run_plots=["diff_map_raw"]' \
-  'out.overwrite=true' \
-  'plots.diff_map_raw.variable=tas' \
-  'plots.diff_map_raw.plev=500' \
-  'plots.diff_map_raw.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
-  'plots.diff_map_raw.time.use_named=TRP' \
-  'plots.diff_map_raw.ticks_everyX_model=1' \
-  'plots.diff_map_raw.keep_0_tick_diff=true' \
-  'plots.diff_map_raw.global_centre=0' \
-  'plots.diff_map_raw.detrend.enabled=true' \
-  'plots.diff_map_raw.detrend.preserve_mean=false' \
-  'plots.diff_map_raw.special_outdir="tas/test2"' \
-  'plots.diff_map_raw.range_source.suffix="_sst0+AW+sst2+sst4"' \
-  'plots.diff_map_raw.range_source.csv_file1="outputs/range_summary/range_summary_compact${.suffix}.csv"' \
-  'plots.diff_map_raw.range_source.csv_file2="outputs/range_summary/model_minus_era5_summary_by_var_plev${.suffix}.csv"' \
-  'plots.diff_map_raw.range_source.percentile=99'
+# python -m evaluation.main \
+#   'run_plots=["diff_map_raw"]' \
+#   'out.overwrite=true' \
+#   'plots.diff_map_raw.variable=tas' \
+#   'plots.diff_map_raw.plev=500' \
+#   'plots.diff_map_raw.models=["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
+#   'plots.diff_map_raw.time.use_named=TRP' \
+#   'plots.diff_map_raw.ticks_everyX_model=1' \
+#   'plots.diff_map_raw.keep_0_tick_diff=true' \
+#   'plots.diff_map_raw.global_centre=0' \
+#   'plots.diff_map_raw.detrend.enabled=true' \
+#   'plots.diff_map_raw.detrend.preserve_mean=false' \
+#   'plots.diff_map_raw.special_outdir="tas/test2"' \
+#   'plots.diff_map_raw.range_source.suffix="_sst0+AW+sst2+sst4"' \
+#   'plots.diff_map_raw.range_source.csv_file1="outputs/range_summary/range_summary_compact${.suffix}.csv"' \
+#   'plots.diff_map_raw.range_source.csv_file2="outputs/range_summary/model_minus_era5_summary_by_var_plev${.suffix}.csv"' \
+#   'plots.diff_map_raw.range_source.percentile=99'
 
 # # TSTP
 # python -m evaluation.main \
@@ -327,5 +331,62 @@ python -m evaluation.main \
 # plots.individual_plots.colour_scheme=BrBG \
 # plots.individual_plots.range_source.suffix="_ALL" \
 # plots.individual_plots.range_source.percentile=99
+
+# ---- ZONAL MEAN ----
+# full period
+python -m evaluation.main \
+run_plots='["zonal_mean"]' \
+out.overwrite=true \
+plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg" \
+plots.zonal_mean.models='["forced_sst","archesweather"]' \
+plots.zonal_mean.map_era5=true \
+plots.zonal_mean.all_single_plots=true \
+plots.zonal_mean.difference=false \
+plots.zonal_mean.only_mean=false \
+plots.zonal_mean.cmap_absolute=bwr \
+plots.zonal_mean.cmap_difference=BrBG \
+plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.percentile=99 \
+plots.zonal_mean.colourbar.target_bins=20 \
+plots.zonal_mean.colourbar.tick_every=2 \
+plots.zonal_mean.special_outdir="sst0+AW_99_single"
+
+# TRP
+python -m evaluation.main \
+run_plots='["zonal_mean"]' \
+out.overwrite=true \
+plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg" \
+plots.zonal_mean.time.use_named=TRP \
+plots.zonal_mean.models='["forced_sst","archesweather"]' \
+plots.zonal_mean.map_era5=true \
+plots.zonal_mean.all_single_plots=true \
+plots.zonal_mean.difference=false \
+plots.zonal_mean.only_mean=false \
+plots.zonal_mean.cmap_absolute=bwr \
+plots.zonal_mean.cmap_difference=BrBG \
+plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.percentile=99 \
+plots.zonal_mean.colourbar.target_bins=20 \
+plots.zonal_mean.colourbar.tick_every=2 \
+plots.zonal_mean.special_outdir="sst0+AW_99_single"
+
+# TSTP
+python -m evaluation.main \
+run_plots='["zonal_mean"]' \
+out.overwrite=true \
+plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg" \
+plots.zonal_mean.time.use_named=TSTP \
+plots.zonal_mean.models='["forced_sst","archesweather"]' \
+plots.zonal_mean.map_era5=true \
+plots.zonal_mean.all_single_plots=true \
+plots.zonal_mean.difference=false \
+plots.zonal_mean.only_mean=false \
+plots.zonal_mean.cmap_absolute=bwr \
+plots.zonal_mean.cmap_difference=BrBG \
+plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.percentile=99 \
+plots.zonal_mean.colourbar.target_bins=20 \
+plots.zonal_mean.colourbar.tick_every=2 \
+plots.zonal_mean.special_outdir="sst0+AW_99_single"
 
 echo "ALL DONE."
