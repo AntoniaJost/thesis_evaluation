@@ -14,6 +14,7 @@ from evaluation.general_functions import (
     model_file_pattern,
     open_single_match,
     conversion_rules,
+    detrend_dataarray,
 )
 
 from evaluation.metrics.bias_map import compute_slope_per_gridpoint
@@ -117,6 +118,72 @@ def compute_compact_summary(df_subset: pd.DataFrame) -> pd.DataFrame:
         row["slope_p99"] = g["slope_map_p99"].max()
         row["slope_max"] = g["slope_map_max"].max()
 
+        # detrended raw, preserve_mean=False
+        row["raw_detrended0_min"] = g["raw_detrended0_min"].min()
+        row["raw_detrended0_p01"] = g["raw_detrended0_p01"].min()
+        row["raw_detrended0_p05"] = g["raw_detrended0_p05"].min()
+        row["raw_detrended0_p95"] = g["raw_detrended0_p95"].max()
+        row["raw_detrended0_p99"] = g["raw_detrended0_p99"].max()
+        row["raw_detrended0_max"] = g["raw_detrended0_max"].max()
+
+        row["temporal_detrended0_min"] = g["temporal_mean_detrended0_min"].min()
+        row["temporal_detrended0_p01"] = g["temporal_mean_detrended0_p01"].min()
+        row["temporal_detrended0_p05"] = g["temporal_mean_detrended0_p05"].min()
+        row["temporal_detrended0_p95"] = g["temporal_mean_detrended0_p95"].max()
+        row["temporal_detrended0_p99"] = g["temporal_mean_detrended0_p99"].max()
+        row["temporal_detrended0_max"] = g["temporal_mean_detrended0_max"].max()
+
+        row["spatial_detrended0_min"] = g["spatial_mean_detrended0_min"].min()
+        row["spatial_detrended0_p01"] = g["spatial_mean_detrended0_p01"].min()
+        row["spatial_detrended0_p05"] = g["spatial_mean_detrended0_p05"].min()
+        row["spatial_detrended0_p95"] = g["spatial_mean_detrended0_p95"].max()
+        row["spatial_detrended0_p99"] = g["spatial_mean_detrended0_p99"].max()
+        row["spatial_detrended0_max"] = g["spatial_mean_detrended0_max"].max()
+
+        row["slope_mean_detrended0_min"] = g["slope_mean_detrended0"].min()
+        row["slope_mean_detrended0_mean"] = g["slope_mean_detrended0"].mean()
+        row["slope_mean_detrended0_max"] = g["slope_mean_detrended0"].max()
+
+        row["slope_detrended0_min"] = g["slope_map_detrended0_min"].min()
+        row["slope_detrended0_p01"] = g["slope_map_detrended0_p01"].min()
+        row["slope_detrended0_p05"] = g["slope_map_detrended0_p05"].min()
+        row["slope_detrended0_p95"] = g["slope_map_detrended0_p95"].max()
+        row["slope_detrended0_p99"] = g["slope_map_detrended0_p99"].max()
+        row["slope_detrended0_max"] = g["slope_map_detrended0_max"].max()
+
+        # detrended raw, preserve_mean=True
+        row["raw_detrended1_min"] = g["raw_detrended1_min"].min()
+        row["raw_detrended1_p01"] = g["raw_detrended1_p01"].min()
+        row["raw_detrended1_p05"] = g["raw_detrended1_p05"].min()
+        row["raw_detrended1_p95"] = g["raw_detrended1_p95"].max()
+        row["raw_detrended1_p99"] = g["raw_detrended1_p99"].max()
+        row["raw_detrended1_max"] = g["raw_detrended1_max"].max()
+
+        row["temporal_detrended1_min"] = g["temporal_mean_detrended1_min"].min()
+        row["temporal_detrended1_p01"] = g["temporal_mean_detrended1_p01"].min()
+        row["temporal_detrended1_p05"] = g["temporal_mean_detrended1_p05"].min()
+        row["temporal_detrended1_p95"] = g["temporal_mean_detrended1_p95"].max()
+        row["temporal_detrended1_p99"] = g["temporal_mean_detrended1_p99"].max()
+        row["temporal_detrended1_max"] = g["temporal_mean_detrended1_max"].max()
+
+        row["spatial_detrended1_min"] = g["spatial_mean_detrended1_min"].min()
+        row["spatial_detrended1_p01"] = g["spatial_mean_detrended1_p01"].min()
+        row["spatial_detrended1_p05"] = g["spatial_mean_detrended1_p05"].min()
+        row["spatial_detrended1_p95"] = g["spatial_mean_detrended1_p95"].max()
+        row["spatial_detrended1_p99"] = g["spatial_mean_detrended1_p99"].max()
+        row["spatial_detrended1_max"] = g["spatial_mean_detrended1_max"].max()
+
+        row["slope_mean_detrended1_min"] = g["slope_mean_detrended1"].min()
+        row["slope_mean_detrended1_mean"] = g["slope_mean_detrended1"].mean()
+        row["slope_mean_detrended1_max"] = g["slope_mean_detrended1"].max()
+
+        row["slope_detrended1_min"] = g["slope_map_detrended1_min"].min()
+        row["slope_detrended1_p01"] = g["slope_map_detrended1_p01"].min()
+        row["slope_detrended1_p05"] = g["slope_map_detrended1_p05"].min()
+        row["slope_detrended1_p95"] = g["slope_map_detrended1_p95"].max()
+        row["slope_detrended1_p99"] = g["slope_map_detrended1_p99"].max()
+        row["slope_detrended1_max"] = g["slope_map_detrended1_max"].max()
+
         rows.append(row)
 
     return pd.DataFrame(rows).sort_values(["var", "plev_pa"], na_position="first")
@@ -138,7 +205,6 @@ def write_model_minus_era5_rows(cfg, path: str):
 
         era5_full = open_full_era5_da(cfg, var)
         era5_plevs = get_all_plevs(era5_full)
-        del era5_full
 
         for model_name, model_cfg in cfg.datasets.models.items():
             if (
@@ -149,7 +215,7 @@ def write_model_minus_era5_rows(cfg, path: str):
 
             for member in cfg.members:
 
-                sample = open_full_model_da(
+                da_model_full = open_full_model_da(
                     model_cfg=model_cfg,
                     cfg=cfg,
                     member=member,
@@ -158,8 +224,7 @@ def write_model_minus_era5_rows(cfg, path: str):
                     freq="monthly",
                     grid="gn",
                 )
-                model_plevs = get_all_plevs(sample)
-                del sample
+                model_plevs = get_all_plevs(da_model_full)
 
                 common_plevs = sorted(
                     set(era5_plevs).intersection(set(model_plevs)),
@@ -169,20 +234,10 @@ def write_model_minus_era5_rows(cfg, path: str):
                 for plev in common_plevs:
                     print(f" diff rows: {model_name} {member} var={var} plev={plev}")
 
-                    da_era5 = open_full_era5_da(cfg, var)
-                    da_era5 = select_plev(da_era5, plev)
+                    da_era5 = select_plev(era5_full, plev)
                     da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_default)
 
-                    da_model = open_full_model_da(
-                        model_cfg=model_cfg,
-                        cfg=cfg,
-                        member=member,
-                        var=var,
-                        modelname=model_cfg.modelname,
-                        freq="monthly",
-                        grid="gn",
-                    )
-                    da_model = select_plev(da_model, plev)
+                    da_model = select_plev(da_model_full, plev)
                     da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
 
                     da_model = normalise_monthly_time(da_model)
@@ -193,11 +248,9 @@ def write_model_minus_era5_rows(cfg, path: str):
                         print(f"  skipping {model_name} {member} {var} plev={plev}: no overlapping time after alignment")
                         continue
 
-                    diff_da = da_model - da_era5
-
-                    row = build_summary_row(
-                        diff_da,
-                        dataset_type="model_minus_era5",
+                    row = build_difference_summary_row(
+                        da_model=da_model,
+                        da_era5=da_era5,
                         dataset_name=model_name,
                         member=member,
                         var=var,
@@ -207,6 +260,10 @@ def write_model_minus_era5_rows(cfg, path: str):
                     )
 
                     append_row_csv(row, path)
+
+                del da_model_full
+
+        del era5_full
 
 
 def write_compact_summaries(cfg, csv_path: str, outdir: str, tag: str = ""):
@@ -428,6 +485,54 @@ def append_row_csv(row: dict, path: str):
 
 
 # ---------------------------------------------------------------------
+# DETRENDING HELPERS
+# ---------------------------------------------------------------------
+
+def detrended_versions(
+    da: xr.DataArray,
+    preserve_mean: bool,
+    base_start: str | None = None,
+    base_end: str | None = None,
+) -> tuple[xr.DataArray, xr.DataArray, xr.DataArray]:
+    """
+    Return detrended versions needed for the summary:
+      - full detrended field
+      - detrended spatial mean timeseries
+      - detrended temporal-mean map
+    If base_start/base_end are None, detrend over the full available period.
+    """
+    kwargs = dict(dim="time", preserve_mean=preserve_mean)
+
+    if base_start and base_end:
+        kwargs["start"] = base_start
+        kwargs["end"] = base_end
+
+    da_det = detrend_dataarray(da, **kwargs)
+    spatial_det = area_weighted_spatial_mean(da_det)
+    temporal_det = temporal_mean_map(da_det)
+    return da_det, spatial_det, temporal_det
+
+
+def detrend_only(
+    da: xr.DataArray,
+    preserve_mean: bool,
+    base_start: str | None = None,
+    base_end: str | None = None,
+) -> xr.DataArray:
+    """
+    Return only the detrended field, using the same detrending logic
+    as detrended_versions().
+    """
+    kwargs = dict(dim="time", preserve_mean=preserve_mean)
+
+    if base_start and base_end:
+        kwargs["start"] = base_start
+        kwargs["end"] = base_end
+
+    return detrend_dataarray(da, **kwargs)
+
+
+# ---------------------------------------------------------------------
 # SUMMARY ROW
 # ---------------------------------------------------------------------
 
@@ -468,8 +573,135 @@ def build_summary_row(
     row.update(summarise_distribution(temporal_vals, "temporal_mean"))
     row.update(summarise_distribution(slope_vals, "slope_map"))
 
+    # --- detrended summaries ---
+    da_det_pmfalse, spatial_det_pmfalse, temporal_det_pmfalse = detrended_versions(
+        da, preserve_mean=False
+    )
+    row.update(summarise_distribution(finite_values(da_det_pmfalse), "raw_detrended0"))
+    row.update(summarise_distribution(finite_values(spatial_det_pmfalse), "spatial_mean_detrended0"))
+    row.update(summarise_distribution(finite_values(temporal_det_pmfalse), "temporal_mean_detrended0"))
+
+    slope_map_det0 = slope_map_per_decade(da_det_pmfalse)
+    slope_vals_det0 = finite_values(slope_map_det0)
+    row["slope_mean_detrended0"] = area_weighted_mean_map(slope_map_det0)
+    row.update(summarise_distribution(slope_vals_det0, "slope_map_detrended0"))
+
+    da_det_pmtrue, spatial_det_pmtrue, temporal_det_pmtrue = detrended_versions(
+        da, preserve_mean=True
+    )
+    row.update(summarise_distribution(finite_values(da_det_pmtrue), "raw_detrended1"))
+    row.update(summarise_distribution(finite_values(spatial_det_pmtrue), "spatial_mean_detrended1"))
+    row.update(summarise_distribution(finite_values(temporal_det_pmtrue), "temporal_mean_detrended1"))
+
+    slope_map_det1 = slope_map_per_decade(da_det_pmtrue)
+    slope_vals_det1 = finite_values(slope_map_det1)
+    row["slope_mean_detrended1"] = area_weighted_mean_map(slope_map_det1)
+    row.update(summarise_distribution(slope_vals_det1, "slope_map_detrended1"))
+
     return row
 
+
+def build_difference_summary_row(
+    da_model: xr.DataArray,
+    da_era5: xr.DataArray,
+    dataset_name,
+    member,
+    var,
+    long_name,
+    unit,
+    plev,
+):
+    """
+    Build one summary row for model-minus-ERA5, with all three variants:
+      - raw difference
+      - detrend first, then subtract (preserve_mean=False)
+      - detrend first, then subtract (preserve_mean=True)
+    """
+
+    # ---------------------------
+    # raw difference
+    # ---------------------------
+    diff_raw = da_model - da_era5
+
+    spatial_vals = finite_values(area_weighted_spatial_mean(diff_raw))
+    temporal_vals = finite_values(temporal_mean_map(diff_raw))
+    raw_vals = finite_values(diff_raw)
+
+    slope_map = slope_map_per_decade(diff_raw)
+    slope_vals = finite_values(slope_map)
+
+    row = dict(
+        dataset_type="model_minus_era5",
+        dataset_name=dataset_name,
+        member=member,
+        var=var,
+        long_name=long_name,
+        unit=unit,
+        slope_unit=f"{unit}/decade",
+        plev_pa=plev,
+        plev_hpa=plev_to_hpa(plev),
+        global_mean=global_mean_scalar(diff_raw),
+        slope_global_mean=area_weighted_mean_map(slope_map),
+    )
+
+    row.update(summarise_distribution(raw_vals, "raw"))
+    row.update(summarise_distribution(spatial_vals, "spatial_mean"))
+    row.update(summarise_distribution(temporal_vals, "temporal_mean"))
+    row.update(summarise_distribution(slope_vals, "slope_map"))
+
+    # ---------------------------
+    # detrend first, then subtract
+    # preserve_mean=False
+    # ---------------------------
+    da_model_det0 = detrend_only(da_model, preserve_mean=False)
+    da_era5_det0 = detrend_only(da_era5, preserve_mean=False)
+    diff_det0 = da_model_det0 - da_era5_det0
+
+    row.update(summarise_distribution(finite_values(diff_det0), "raw_detrended0"))
+    row.update(
+        summarise_distribution(
+            finite_values(area_weighted_spatial_mean(diff_det0)),
+            "spatial_mean_detrended0",
+        )
+    )
+    row.update(
+        summarise_distribution(
+            finite_values(temporal_mean_map(diff_det0)),
+            "temporal_mean_detrended0",
+        )
+    )
+    slope_map_det0 = slope_map_per_decade(diff_det0)
+    slope_vals_det0 = finite_values(slope_map_det0)
+    row["slope_mean_detrended0"] = area_weighted_mean_map(slope_map_det0)
+    row.update(summarise_distribution(slope_vals_det0, "slope_map_detrended0"))
+
+    # ---------------------------
+    # detrend first, then subtract
+    # preserve_mean=True
+    # ---------------------------
+    da_model_det1 = detrend_only(da_model, preserve_mean=True)
+    da_era5_det1 = detrend_only(da_era5, preserve_mean=True)
+    diff_det1 = da_model_det1 - da_era5_det1
+
+    row.update(summarise_distribution(finite_values(diff_det1), "raw_detrended1"))
+    row.update(
+        summarise_distribution(
+            finite_values(area_weighted_spatial_mean(diff_det1)),
+            "spatial_mean_detrended1",
+        )
+    )
+    row.update(
+        summarise_distribution(
+            finite_values(temporal_mean_map(diff_det1)),
+            "temporal_mean_detrended1",
+        )
+    )
+    slope_map_det1 = slope_map_per_decade(diff_det1)
+    slope_vals_det1 = finite_values(slope_map_det1)
+    row["slope_mean_detrended1"] = area_weighted_mean_map(slope_map_det1)
+    row.update(summarise_distribution(slope_vals_det1, "slope_map_detrended1"))
+
+    return row
 
 # ---------------------------------------------------------------------
 # MAIN
@@ -508,14 +740,11 @@ def main(cfg):
 
             era5_full = open_full_era5_da(cfg, var)
             era5_plevs = get_all_plevs(era5_full)
-            del era5_full
 
             for plev in era5_plevs:
-
                 print(f" ERA5 plev={plev}")
 
-                da = open_full_era5_da(cfg, var)
-                da = select_plev(da, plev)
+                da = select_plev(era5_full, plev)
                 da, unit_here = conversion_rules(var, da, cfg, "era5", unit_default)
 
                 row = build_summary_row(
@@ -531,6 +760,8 @@ def main(cfg):
 
                 append_row_csv(row, csv_path)
 
+            del era5_full
+
             # -------------------------------------------------
             # MODELS
             # -------------------------------------------------
@@ -542,7 +773,7 @@ def main(cfg):
 
                     print(f" Discovering plevs for {model_name} {member}")
 
-                    sample = open_full_model_da(
+                    da_full = open_full_model_da(
                         model_cfg=model_cfg,
                         cfg=cfg,
                         member=member,
@@ -552,25 +783,12 @@ def main(cfg):
                         grid="gn",
                     )
 
-                    plevs = get_all_plevs(sample)
-                    del sample
+                    plevs = get_all_plevs(da_full)
 
                     for plev in plevs:
-
                         print(f" {model_name} {member} plev={plev}")
 
-                        da = open_full_model_da(
-                            model_cfg=model_cfg,
-                            cfg=cfg,
-                            member=member,
-                            var=var,
-                            modelname=model_cfg.modelname,
-                            freq="monthly",
-                            grid="gn",
-                        )
-
-                        da = select_plev(da, plev)
-
+                        da = select_plev(da_full, plev)
                         da, unit_here = conversion_rules(
                             var, da, cfg, "model", unit_default
                         )
@@ -587,6 +805,8 @@ def main(cfg):
                         )
 
                         append_row_csv(row, csv_path)
+
+                    del da_full
 
     print("\nWriting compact summary files...")
     write_compact_summaries(cfg=cfg, csv_path=csv_path, outdir=outdir, tag=TAG)
