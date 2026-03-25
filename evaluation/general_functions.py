@@ -194,6 +194,36 @@ def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: s
     da = select_plev_if_needed(da, var=var, plev=plev, context=path)
     return da
 
+
+def open_era5_da_raw(cfg, var: str, start: str, end: str) -> xr.DataArray:
+    """
+    Open ERA5 variable without selecting a pressure level.
+    needed for zonal_mean
+    """
+    if var not in cfg.variables.era5_name:
+        raise KeyError(
+            f"No ERA5 name mapping for var='{var}'. "
+            f"Available mappings: {list(cfg.variables.era5_name.keys())}"
+        )
+
+    era5_var = cfg.variables.era5_name[var]
+    root = cfg.datasets.era5.root
+    pattern = cfg.datasets.era5.pattern
+
+    file_var = "ci" if var == "siconc" else var
+    path = f"{root}/{pattern.format(var=file_var)}"
+
+    ds = xr.open_dataset(path).sel(time=slice(start, end))
+
+    if era5_var not in ds:
+        raise KeyError(
+            f"ERA5 variable '{era5_var}' not found in {path}. "
+            f"Available: {list(ds.data_vars)}"
+        )
+
+    return ds[era5_var]
+
+
 def open_era5_da(cfg, var: str, start: str, end: str, plev=None) -> xr.DataArray:
     # map to ERA5 variable naming
     if var not in cfg.variables.era5_name:
