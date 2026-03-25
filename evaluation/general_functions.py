@@ -252,6 +252,8 @@ def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default:
         return da * val, unit
     if op == "div":
         return da / val, unit
+    if op == "to_geopot_height":
+        return da / val, unit
     raise ValueError(f"Unknown conversion op: {op}")
 
 
