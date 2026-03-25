@@ -1,0 +1,46 @@
+accepted_vars: [ta, ua, va, wap, hus, zg]
+variable: [ta, ua, va, wap, hus, zg] # options: [ta, ua, va, wap, hus, zg]
+# if more than 1 variable is selected that contain pressure levels, plev selection will be applied to all
+plev: null # options: null, [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000] (Pa, but code also understands inputs in hPa)
+reduce_era5_to_same_levels: true # true is recommended
+freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
+grid: gn # only supports gn
+models: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
+map_era5: true # only works for method map; will create same maps for era5; needs at least one model set in models (bug to fix later)
+all_single_plots: true # if individual plots for each member and model are created or all members of 1 model (plus optionally mean and/or era5) are plotted on one plot next to each other
+time:
+  use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
+  start: "1979-01-01"
+  end: "2024-12-31"
+
+difference: false
+reference:
+  type: era5 # options: era5 or model
+  model: null # required if type=model
+include_ensemble_mean_as_member: true
+only_mean: false # if this is set to true, include_ensemble_mean_as_member also has to be true
+
+# plot
+figsize: null # options null (recommended) or e.g. [12, 8]
+cmap_absolute: bwr
+cmap_difference: BrBG
+invert_yaxis: true
+ylog: true
+title: null # string; options to be included: {long_name}, {unit}, {start}, {end}, {difference}, {reference_type}, {reference_model}
+colourbar:
+  use_csv_ranges: true
+  suffix: _ALL
+  csv_file: outputs/plev_range/range_plevs${.suffix}.csv
+  percentile: "raw"   # options: "99", "95", "raw"
+  use_custom_bins: true
+  bin_size: null
+  target_bins: 20 # indirectly translates to levels of contourf plot
+  tick_every: 2
+  include_zero_tick: true
+  mode: auto         # options: auto, centered, linear
+  manual_vmin: null
+  manual_vmax: null
+
+anomaly: false # dummy but needed, don't change
+
+special_outdir: null # options: string after outputs/individual_plots/{method}/{var} or null
