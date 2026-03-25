@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=zm_sst0
+#SBATCH --job-name=zm_ALL_99
 #SBATCH --time=08:00:00
 #SBATCH --partition=compute
 #SBATCH --account=bk1450
@@ -337,56 +337,56 @@ set -euo pipefail
 python -m evaluation.main \
 run_plots='["zonal_mean"]' \
 out.overwrite=true \
-plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg" \
-plots.zonal_mean.models='["forced_sst","archesweather"]' \
+plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg]" \
+plots.zonal_mean.models='["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
 plots.zonal_mean.map_era5=true \
-plots.zonal_mean.all_single_plots=true \
+plots.zonal_mean.all_single_plots=false \
 plots.zonal_mean.difference=false \
 plots.zonal_mean.only_mean=false \
 plots.zonal_mean.cmap_absolute=bwr \
 plots.zonal_mean.cmap_difference=BrBG \
-plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.suffix="_ALL" \
 plots.zonal_mean.colourbar.percentile=99 \
 plots.zonal_mean.colourbar.target_bins=20 \
 plots.zonal_mean.colourbar.tick_every=2 \
-plots.zonal_mean.special_outdir="sst0+AW_99_single"
+plots.zonal_mean.special_outdir="ALL_99"
 
 # TRP
 python -m evaluation.main \
 run_plots='["zonal_mean"]' \
 out.overwrite=true \
-plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg" \
+plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg]" \
 plots.zonal_mean.time.use_named=TRP \
-plots.zonal_mean.models='["forced_sst","archesweather"]' \
+plots.zonal_mean.models='["free_run_control","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
 plots.zonal_mean.map_era5=true \
-plots.zonal_mean.all_single_plots=true \
+plots.zonal_mean.all_single_plots=false \
 plots.zonal_mean.difference=false \
 plots.zonal_mean.only_mean=false \
 plots.zonal_mean.cmap_absolute=bwr \
 plots.zonal_mean.cmap_difference=BrBG \
-plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.suffix="_ALL" \
 plots.zonal_mean.colourbar.percentile=99 \
 plots.zonal_mean.colourbar.target_bins=20 \
 plots.zonal_mean.colourbar.tick_every=2 \
-plots.zonal_mean.special_outdir="sst0+AW_99_single"
+plots.zonal_mean.special_outdir="ALL_99"
 
 # TSTP
 python -m evaluation.main \
 run_plots='["zonal_mean"]' \
 out.overwrite=true \
-plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg" \
+plots.zonal_mean.variable="[ta, ua, va, wap, hus, zg]" \
 plots.zonal_mean.time.use_named=TSTP \
-plots.zonal_mean.models='["forced_sst","archesweather"]' \
+plots.zonal_mean.models='["free_run_control","free_run_prediction","forced_sst","forced_sst_2k","forced_sst_4k","archesweather"]' \
 plots.zonal_mean.map_era5=true \
-plots.zonal_mean.all_single_plots=true \
+plots.zonal_mean.all_single_plots=false \
 plots.zonal_mean.difference=false \
 plots.zonal_mean.only_mean=false \
 plots.zonal_mean.cmap_absolute=bwr \
 plots.zonal_mean.cmap_difference=BrBG \
-plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.suffix="_ALL" \
 plots.zonal_mean.colourbar.percentile=99 \
 plots.zonal_mean.colourbar.target_bins=20 \
 plots.zonal_mean.colourbar.tick_every=2 \
-plots.zonal_mean.special_outdir="sst0+AW_99_single"
+plots.zonal_mean.special_outdir="ALL_99"
 
 echo "ALL DONE."
