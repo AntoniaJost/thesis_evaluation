@@ -10,9 +10,10 @@ defaults:
   - plots@plots.bias_map: bias_map
   - plots@plots.diff_map_raw: diff_map_raw
   - plots@plots.individual_plots: individual_plots
+  - plots@plots.zonal_mean: zonal_mean
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean", "anomalies", "bias_map", "diff_map_raw", "soi", "individual_plots"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots"]
+run_plots: ["global_mean", "anomalies", "bias_map", "diff_map_raw", "soi", "individual_plots", "zonal_mean"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots"]
 
 # output behaviour
 out:
