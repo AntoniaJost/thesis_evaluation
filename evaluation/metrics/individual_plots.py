@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 import os
+import warnings
 
 import cartopy.crs as ccrs
 import hydra
@@ -450,10 +451,28 @@ def _subtract_with_time_alignment(model_da: xr.DataArray, era5_da: xr.DataArray,
 
 
 # ---- PLOT RANGE / COLOURBAR HELPERS ----
-def _summary_column_prefix(single_time: bool) -> str:
-    # just renaming to match columns in csv
-    return "raw" if single_time else "temporal"
-
+def _summary_column_prefix(plot_cfg, single_time: bool) -> str:
+    """
+    renaming to match columns in csv
+    supports:
+      raw / temporal / slope
+      + detrended0 / detrended1 variants
+    - detrended0 -> preserve_mean = False
+    - detrended1 -> preserve_mean = True
+    """
+    stat = _time_stat(plot_cfg)
+    # trend
+    if stat == "trend":
+        if plot_cfg.detrend.enabled:
+            return "slope_detrended1" if plot_cfg.detrend.preserve_mean else "slope_detrended0"
+        return "slope"
+    # raw/temporal
+    base = "raw" if single_time else "temporal"
+    if plot_cfg.detrend.enabled:
+        suffix = "detrended1" if plot_cfg.detrend.preserve_mean else "detrended0"
+        return f"{base}_{suffix}"
+    
+    return base
 
 def _dynamic_bounds(arrays: list[xr.DataArray], percentile=99, symmetric=False) -> tuple[float, float]:
     """
@@ -511,11 +530,7 @@ def _get_map_bounds(cfg, plot_cfg, arrays: list[xr.DataArray], var: str, plev, d
         try:
             csv_rel = plot_cfg.range_source.csv_file2 if difference else plot_cfg.range_source.csv_file1
             csv_path = os.path.join(hydra.utils.get_original_cwd(), csv_rel)
-            stat = _time_stat(plot_cfg)
-            if stat == "trend":
-                prefix = "slope"
-            else:
-                prefix = _summary_column_prefix(single_time)
+            prefix = _summary_column_prefix(plot_cfg, single_time)
             vmin, vmax = get_range_from_csv(
                 percentile=plot_cfg.range_source.percentile,
                 csv_file=csv_path,
@@ -958,8 +973,12 @@ def run(cfg):
             "Skipping ERA5 map in individual_plots because map_era5=true and difference=true (ERA5 - ERA5 will be zero)."
         )
     if _time_stat(plot_cfg) == "trend" and plot_cfg.detrend.enabled:
-        raise ValueError(
-            "Detrending cannot be used together with time_stat='trend', because that would remove the trend you want to analyse."
+        warnings.warn(
+            "You are trying to use detrending together with time_stat='trend', this will most likely remove the trend you want to analyse. Be aware of your settings. The code will continue, this is just a warning."
+        )
+    if method == "map" and plot_cfg.detrend.enabled and not plot_cfg.detrend.preserve_mean and plot_cfg.map_era5:
+        warnings.warn(
+            "You are plotting a detrended map, which might have values very close to zero.Especially ERA5 can take a very long time (you have set map_era5=true). Consider at least readding the mean (perserve_mean=true) or question in general whether this is a useful plot."
         )
     figsize = _resolve_figsize(plot_cfg, method)
     add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""

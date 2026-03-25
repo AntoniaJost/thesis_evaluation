@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import cartopy.crs as ccrs
 import hydra
+import warnings
 
 from evaluation.general_functions import (
     model_abbrev,
@@ -18,6 +19,7 @@ from evaluation.general_functions import (
     should_compute_output,
     iter_vars_and_plevs,
     plev_strings,
+    get_range_from_csv,
 )
 
 from evaluation.metrics.bias_map import (
@@ -37,20 +39,6 @@ from evaluation.metrics.individual_plots import (
     _get_map_bounds,
     _time_stat,
 )
-
-
-# def add_bottom_numbers_raw(ax, diff_value: float, rmse_value: float, unit: str, fontsize: int = 8):
-#     text = f"Diff: {diff_value:+.2f} | RMSE: {rmse_value:.2f} {unit}"
-#     ax.text(
-#         0.5,
-#         -0.14,
-#         text,
-#         transform=ax.transAxes,
-#         ha="center",
-#         va="top",
-#         fontsize=fontsize,
-#         clip_on=False,
-#     )
 
 
 def _validate_cfg(plot_cfg):
@@ -86,6 +74,10 @@ def _build_levels_and_ticks(vmin, vmax, target_bins, set_size_of_bins, ticks_eve
 def run(cfg):
     plot_cfg = cfg.plots.diff_map_raw
     _validate_cfg(plot_cfg)
+    if plot_cfg.detrend.enabled and not plot_cfg.detrend.preserve_mean:
+        warnings.warn(
+            "You have chosen to plot a detrended map, without readding the mean. This will lead to very small values very close to zero. Therefore this plotting takes very long (approx. 30 min. per 1 model, 1 variable, 1 pressure level)."
+        )
     add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""
     centre = float(getattr(plot_cfg, "global_centre", 0))
 
