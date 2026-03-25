@@ -29,6 +29,7 @@ conversions:
   tas: {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}
   tos: {op: "sub", value: 273.15, applies_to: "era5", unit: "°C"}  
   siconc: {op: "mul", value: 100, applies_to: "era5", unit: "%"}
+  zg: {op: "to_geopot_height", value: 9.81, applies_to: "both", unit: "m"}
 
 freq_map:
   monthly: Amon
