@@ -197,6 +197,7 @@ def symmetric_ticks_from_levels(levels, vmin, vmax, keep_every: int = 1, include
 
 def run(cfg):
     plot_cfg = cfg.plots.bias_map 
+    add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""
 
     for item in iter_vars_and_plevs(cfg, plot_cfg):
         var = item["var"]
@@ -216,12 +217,17 @@ def run(cfg):
                     hydra.utils.get_original_cwd(),
                     cfg.out.dir,
                     "bias_map",
+                    add_dir,
                 )
                 os.makedirs(outdir, exist_ok=True)
 
                 model_tag = model_abbrev(model_name)
-                start_tag = start.replace("-", "")
-                end_tag = end.replace("-", "")
+                if plot_cfg.freq == "monthly":
+                    start_tag = start[:7].replace("-", "")
+                    end_tag = end[:7].replace("-", "")
+                else:
+                    start_tag = start.replace("-", "")
+                    end_tag = end.replace("-", "")
                 perc = ""
                 if plot_cfg.range_source.percentile == 99:
                     perc = "_99p"
@@ -315,6 +321,8 @@ def run(cfg):
                     subplot_kw=dict(projection=ccrs.Robinson()),
                     squeeze=False,
                 )
+                start_str = start[:7]  # YYYY-MM
+                end_str = end[:7]
                 if plot_cfg.title:
                     title = plot_cfg.title.format(
                         var=var,
@@ -323,7 +331,7 @@ def run(cfg):
                         proper_model_name=proper_model_name,
                     )
                 else:
-                    title = f"{long_name} ({var}{plev_title}) trend slope: {proper_model_name} vs ERA5"
+                    title = f"{long_name} ({var}{plev_title}) trend slope: {proper_model_name} vs ERA5 | {start_str} to {end_str}"
 
                 fig.suptitle(title, fontsize=15, fontweight="bold")
 

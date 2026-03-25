@@ -2,12 +2,13 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from evaluation.general_functions import normalise_list
-from evaluation.metrics import global_mean, anomalies, bias_map, soi, individual_plots
+from evaluation.metrics import global_mean, anomalies, bias_map, diff_map_raw, soi, individual_plots
 
 REGISTRY = {
     "global_mean": global_mean.run,
     "anomalies": anomalies.run,
     "bias_map": bias_map.run,
+    "diff_map_raw": diff_map_raw.run,
     "soi": soi.run,
     "individual_plots": individual_plots.run,
 }
