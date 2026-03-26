@@ -155,14 +155,56 @@ def _get_zonal_vmin_vmax(cfg, plot_cfg, var: str):
         hydra.utils.get_original_cwd(),
         cbar_cfg.csv_file,
     )
-    # plev=None because zonal_mean
-    vmin, vmax = get_range_from_csv(
-        percentile=cbar_cfg.percentile,
-        csv_file=csv_file,
-        var=var,
-        plev=None,
-        prefix=prefix,
-    )
+    df = pd.read_csv(csv_file)
+    # the following is almost identical to get_range_from_csv, but slightly adapted to the plev csvs
+    # for zonal_mean, we always want the combined model/member row
+    subset = df[
+        (df["variable"] == var)
+        & (df["source"] == "models_all_members_combined")
+    ]
+    if len(subset) == 0:
+        warnings.warn(
+            f"zonal_mean: no CSV range row found for var='{var}' "
+            f"and source='models_all_members_combined' in {csv_file}. "
+            "Falling back to automatic colour scaling."
+        )
+        return None, None
+
+    row = subset.iloc[0]
+    percentile = str(cbar_cfg.percentile).lower()
+    
+    if percentile == "raw":
+        vmin = row[f"{prefix}_min"]
+        vmax = row[f"{prefix}_max"]
+    elif percentile == "99":
+        vmin = row[f"{prefix}_p01"]
+        vmax = row[f"{prefix}_p99"]
+    elif percentile == "95":
+        vmin = row[f"{prefix}_p05"]
+        vmax = row[f"{prefix}_p95"]
+    else:
+        raise ValueError(
+            f"Unknown colourbar percentile setting: {percentile}. "
+            "Expected one of: raw, 99, 95"
+        )
+
+    if pd.isna(vmin) or pd.isna(vmax):
+        warnings.warn(
+            f"zonal_mean: CSV returned NaN bounds for var='{var}'. "
+            "Falling back to automatic colour scaling."
+        )
+        return None, None
+
+    vmin = float(vmin)
+    vmax = float(vmax)
+
+    if np.isclose(vmin, vmax):
+        warnings.warn(
+            f"zonal_mean: degenerate CSV bounds for var='{var}' "
+            f"(vmin≈vmax≈{vmin}). Falling back to automatic colour scaling."
+        )
+        return None, None
+
     return vmin, vmax
 
 
