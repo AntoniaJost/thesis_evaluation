@@ -285,7 +285,7 @@ def _make_suptitle(plot_cfg, long_name: str, unit: str, start: str, end: str) ->
 
     if plot_cfg.difference:
         ref_str = "ERA5" if ref_type == "era5" else str(ref_model)
-        return f"{long_name} response ({unit})\nModel - {ref_str}\n{start} to {end}"
+        return f"{long_name} difference ({unit})\nModel - {ref_str}\n{start} to {end}"
 
     return f"Zonal mean {long_name} ({unit})\n{start} to {end}"
 
