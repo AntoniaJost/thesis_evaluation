@@ -239,8 +239,8 @@ def run(cfg):
                         end=end_str,
                     )
                 else:
-                    stat_label = "raw field" if _time_stat(plot_cfg) == "raw" else ""
-                    title = f"{long_name} ({var}{plev_title}) {stat_label}: {proper_model_name} vs ERA5 | {start_str} to {end_str}"
+                    # stat_label = "raw field" if _time_stat(plot_cfg) == "raw" else ""
+                    title = f"{long_name} ({var}{plev_title}): {proper_model_name} vs ERA5 | {start_str} to {end_str}"
 
                 if plot_cfg.detrend.enabled and plot_cfg.detrend.preserve_mean:
                     title += " (detrended, mean readded)"
