@@ -90,7 +90,7 @@ def area_weighted_rmse_map(diff: xr.DataArray, lat_name: str = "lat", lon_name: 
 
 def add_bottom_numbers(ax, diff_value: float, rmse_value: float, unit: str, fontsize: int = 8):
     # add difference and RMSE as number below the panel
-    text = f"Diff: {diff_value:+.2f} | RMSE: {rmse_value:.2f} {unit}/dec"
+    text = f"Diff: {diff_value:+.2f} | RMSE: {rmse_value:.2f} {unit}"
     ax.text(
         0.5,
         -0.14,
@@ -363,7 +363,8 @@ def run(cfg):
                                 coastline_colour=coastline_colour,
                             )
                         else:
-                            cf_diff = plot_map(
+                            cf_diff = 
+                            (
                                 ax,
                                 bias_slope[mem],
                                 f"{mem} - ERA5",
@@ -377,7 +378,7 @@ def run(cfg):
                                     ax,
                                     diff_stats[mem],
                                     rmse_stats[mem],
-                                    unit_here,
+                                    f"{unit_here}/dec",
                                 )
                 add_row_labels(axes, [proper_model_name, "ERA5", "Difference"])
                 # colourbars
