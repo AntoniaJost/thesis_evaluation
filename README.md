@@ -14,6 +14,7 @@ The implemented functionality includes:
 - Southern Oscillation Index (SOI)
 - Zonal mean plots
 - Difference maps (Model − ERA5 or Model − Model)
+- Wind speed maps
 - Flexible custom plots (maps and time series for arbitrary combinations of variables, pressure levels, locations, timespans, and methods (out of those presented above))
 
 The system is fully controlled via Hydra, allowing flexible evaluation setups without modifying the code.
@@ -42,6 +43,7 @@ thesis_evaluation/
 │ │ ├─ global_mean.py
 │ │ ├─ individual_plots.py
 │ │ ├─ soi.py
+│ │ ├─ wind.py
 │ │ └─ zonal_mean.py
 │ │
 │ └─ config/
@@ -152,6 +154,11 @@ python -m evaluation.range_plevs \
 
 This produces the plotting ranges needed for the zonal mean plots. Computation takes only about one hour for all models and members.
 
+And run the **range  windspeed** script to get the plotting ranges for the wind maps:
+```bash
+python evaluation/range_windspeed.py --suffix _sst2+sst4
+```
+
 If you are evaluating **ArchesWeatherGen**, you may use the precomputed files in `outputs/range_summary` and `outputs/plev_range`.
 
 If you skip this step, plotting ranges will be determined dynamically.
@@ -178,7 +185,7 @@ Hydra allows configuration overrides directly from the command line, so the file
 
 # Overview Plots vs Detailed Analysis
 
-The following plot types provide a **quick overview**:
+The following plot types provide a **general overview**:
 
 * `global_mean`
 * `anomalies`
@@ -186,6 +193,7 @@ The following plot types provide a **quick overview**:
 * `diff_map_raw`
 * `soi`
 * `zonal_mean`
+* `wind`
 
 Typical workflow:
 
@@ -245,6 +253,7 @@ outputs/
 │  └─ timeseries/
 ├─ range_summary/
 ├─ soi/
+├─ wind/
 └─ zonal_mean/
 ```
 
@@ -280,6 +289,10 @@ The difference between the "Difference Map" and the "Bias Map" (not optimal nami
 ## Southern Oscillation Index
 
 ![SOI example](examples/soi_hist_kde_FRc_member2_19790101-20241231.png)
+
+## Wind Speed Map
+
+![Wind example](examples/wind_surface_sst0K_mean_global_197901-202412.png)
 
 ## Zonal Mean Plot
 

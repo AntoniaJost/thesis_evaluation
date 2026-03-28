@@ -363,8 +363,7 @@ def run(cfg):
                                 coastline_colour=coastline_colour,
                             )
                         else:
-                            cf_diff = 
-                            (
+                            cf_diff = plot_map(
                                 ax,
                                 bias_slope[mem],
                                 f"{mem} - ERA5",
