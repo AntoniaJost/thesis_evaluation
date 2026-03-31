@@ -15,6 +15,7 @@ The implemented functionality includes:
 - Zonal mean plots
 - Difference maps (Model − ERA5 or Model − Model)
 - Wind speed maps
+- Seasonal cycles
 - Flexible custom plots (maps and time series for arbitrary combinations of variables, pressure levels, locations, timespans, and methods (out of those presented above))
 
 The system is fully controlled via Hydra, allowing flexible evaluation setups without modifying the code.
@@ -42,6 +43,7 @@ thesis_evaluation/
 │ │ ├─ diff_map_raw.py
 │ │ ├─ global_mean.py
 │ │ ├─ individual_plots.py
+│ │ ├─ seasonal_cycle.py
 │ │ ├─ soi.py
 │ │ ├─ wind.py
 │ │ └─ zonal_mean.py
@@ -194,6 +196,7 @@ The following plot types provide a **general overview**:
 * `soi`
 * `zonal_mean`
 * `wind`
+* `seasonal_cycle`
 
 Typical workflow:
 
@@ -252,6 +255,7 @@ outputs/
 │  ├─ map/
 │  └─ timeseries/
 ├─ range_summary/
+├─ seasonal_cycle/
 ├─ soi/
 ├─ wind/
 └─ zonal_mean/
@@ -289,6 +293,10 @@ The difference between the "Difference Map" and the "Bias Map" (not optimal nami
 ## Southern Oscillation Index
 
 ![SOI example](examples/soi_hist_kde_FRc_member2_19790101-20241231.png)
+
+## Seasonal Cycle
+
+![Seasonal cycle](examples/seasonal_cycle_tas_sst0K_northern_full_19790101-20241231.png)
 
 ## Wind Speed Map
 
@@ -331,7 +339,8 @@ Known limitations include:
 * Daily ERA5 evaluation may fail because my current dataset only contains monthly ERA5 data. Daily model data therefore cannot always be compared directly.
 * Plotting **ERA5 only** in `individual_plots` requires at least one model to be specified because certain metadata are inferred from the model configuration.
 * Bias map computation is relatively slow and can take **>12 hours for multiple models**.
-* In `zonal_mean` the check if a file already exists first goes throuh all files, collects the yes and nos and then recalculates them. This behaviour is different from all other scripts, where the recalculation, in case of a yes, happens the moment after y is submitted.
+* In `zonal_mean` and `seasonal_cycle` the check if a file already exists first goes through all files, collects the yes and nos and then recalculates them. This behaviour is different from all other scripts, where the recalculation, in case of a yes, happens the moment after y is submitted.
+* `seasonal_cycle` uses daily data. The daily ERA5 data is in a different format (regarding units) than "usual" ERA5 data. Still, the `conversion_rules` are applied to it, which may be incorrect (happens for `tos` and `siconc`). And, if your time span, for example, is start: "1979-01-01", end: "2024-12-31", then for `DJF` it will still include Jan–Feb 1979 even though Dec 1978 is missing and Dec 2024 even though Jan–Feb 2025 are missing. 
 * The code assumes a specific folder structure.
 
 Example structure:
