@@ -8,6 +8,10 @@ time:
   start: "1979-01-01"
   end: "2024-12-31"
 
+baseline:
+  start: "1981-01-01"
+  end: "2010-12-31"
+
 bar_width_days: 25
 figsize: [18, 4]
 
@@ -31,5 +35,9 @@ hist_kde:
   era5_linecol: "black"
 
 regions:
-  tahiti: {lat0: -10, lat1: -20, lon0: 200, lon1: 210}
-  darwin: {lat0: -10, lat1: -20, lon0: 130, lon1: 140}
+  # Tahiti: 15–20°S, 145–155°W -> 360 - 145 = 215
+  # Darwin: 10–15°S, 125–135°E 
+  tahiti: {lat0: -15, lat1: -20, lon0: 205, lon1: 215}
+  darwin: {lat0: -10, lat1: -15, lon0: 125, lon1: 135}
+
+special_outdir: null # options: string after outputs/soi or null
