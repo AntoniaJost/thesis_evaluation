@@ -9,19 +9,28 @@ time:
   start: "1979-01-01"
   end: "2024-12-31"
 
-baseline:
-  start: "1979-01-01"
-  end: "1983-12-31"
+mode: anomaly # options: anomaly (default), detrend, both (first detrend, then anomaly) 
+anom_baseline:
+  start: "1981-01-01"
+  end: "2010-12-31"
+detrend:
+  preserve_mean: true # true = remove only slope, false = remove full fitted trend
+detr_baseline:
+  start: "1981-01-01" # options: "yyyy-mm-dd" or null (=entire period of data)
+  end: "2010-12-31"
 
 figsize: [11.5, 4.8]
 title: null # e.g. "Global Annual Mean {long_name} Anomaly ({var})"
 
 ticks:
-  major: 10
-  minor: 5
+  major: 5
+  minor: 1
 
 legend:
   loc: "lower right"
+  inside_plot: false
+
+special_outdir: null # options: string after outputs/anomalies or null
 
 # colour-blind / red-green blind friendly colours (Okabe-Ito colour palette)
 colours:

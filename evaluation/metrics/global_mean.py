@@ -101,7 +101,7 @@ def select_light_colour(model_name, plot_cfg):
 
 def run(cfg):
     plot_cfg = cfg.plots.global_mean
-
+    add_dir = str(str(plot_cfg.special_outdir) if plot_cfg.special_outdir else "")
     for item in iter_vars_and_plevs(cfg, plot_cfg):
         var = item["var"]
         long_name = item["long_name"]
@@ -115,7 +115,8 @@ def run(cfg):
             outdir = os.path.join(
                 hydra.utils.get_original_cwd(),
                 cfg.out.dir,
-                "global_mean",                    
+                "global_mean", 
+                add_dir,                   
             )
             os.makedirs(outdir, exist_ok=True)
 
@@ -184,7 +185,7 @@ def run(cfg):
             # ERA5 (0K) solid + trend dashed
             years_era5 = agm_era5_by_offset[0].time.dt.year.values
             ax.plot(years_era5, agm_era5_by_offset[0].values, color="black", linewidth=1.5,
-                    label=f"ERA5 (Trend: {trend_era5_by_offset[0]} {unit}/decade)", zorder=5)
+                    label=f"ERA5 (Trend: {trend_era5_by_offset[0]} {unit}/dec)", zorder=5)
             ax.plot(years_era5, lrg_era5_by_offset[0], color="black", linewidth=1.2, linestyle="--", alpha=0.9, zorder=7)
 
             # extra ERA5 offset trend lines
@@ -212,7 +213,7 @@ def run(cfg):
 
                 ax.fill_between(years, ds["min"].values, ds["max"].values,
                                 color=fill, alpha=0.30,
-                                label=f"{cfg.datasets.models[model_name].proper_name} (Ens. trend: {trend_mean_ens[model_name]} {unit}/decade)",
+                                label=f"{cfg.datasets.models[model_name].proper_name} (Ens. trend: {trend_mean_ens[model_name]} {unit}/dec)",
                                 zorder=1)
 
                 ax.plot(years, ds["mean"].values, color=c, linewidth=1.2, alpha=0.95, zorder=4)

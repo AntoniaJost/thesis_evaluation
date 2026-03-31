@@ -36,10 +36,10 @@ add_numbers: true # calcs global RMSE and difference
 
 detrend:
   enabled: false
-  base_period: total # options: total or unique (if unique, please set start and end)
+  base_period: unique # options: total or unique (if unique, please set start and end)
   # only relevant for base_period: unique, otherwise ignored
-  base_start: "1979-01-01"
-  base_end: "2024-12-31"
+  base_start: "1981-01-01"
+  base_end: "2010-12-31"
   preserve_mean: true  # set to true if method = map, otherwise colours will be off
 
 special_outdir: null # options: string after outputs/individual_plots/{method}/{var} or null
