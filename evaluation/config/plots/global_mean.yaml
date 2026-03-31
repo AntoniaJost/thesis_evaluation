@@ -24,6 +24,8 @@ legend:
   loc: "lower right"
   inside_plot: false
 
+special_outdir: null # options: string after outputs/global_mean or null
+
 # colour-blind / red-green blind friendly colours (Okabe-Ito colour palette)
 colours:
   base_colours:
