@@ -473,14 +473,13 @@ def get_range_from_csv(percentile, csv_file: str, var: str, plev: int | None, pr
 
 def detrend_dataarray(da: xr.DataArray, dim: str = "time", start: str = "", end: str = "", preserve_mean: bool = True) -> xr.DataArray:
     """
-    removes a linear trend along `dim` from an xarray
-    params:
-    da : input data with a time dimension
-    dim : dimension along which to detrend
-    base_period : optional period (start_time, end_time) over which to fit the trend; 
-                  if None, fit over the full available time range
-    preserve_mean : if true, add back the mean of the fitted period so that the detrended
-                    series keeps its average level
+    - removes only the linear slope along `dim`
+    - if `start` and `end` are given, the linear fit is estimated on that subset, but the resulting slope correction is applied to the full DataArray
+    Behaviour:
+    - preserve_mean=True:
+        remove only the varying part of the fitted line -> keep the mean level of the fitted period
+    - preserve_mean=False:
+        remove the full fitted line (slope+intercept)
     """
     if dim not in da.dims:
         raise ValueError(f"Dimension '{dim}' not found in DataArray dims {da.dims}")
@@ -496,12 +495,14 @@ def detrend_dataarray(da: xr.DataArray, dim: str = "time", start: str = "", end:
     # polyfit along specified dimension
     polyfit = fit_da.polyfit(dim=dim, deg=1, skipna=True) #deg=1=linear trend
     coeffs = polyfit.polyfit_coefficients # extract slope and intercept
-    trend = xr.polyval(da[dim], coeffs) # fitted trend for entire dataset
+    trend_full = xr.polyval(da[dim], coeffs) # fitted trend for entire dataset
 
-    detrended = da - trend # remove the fitted trend
-
-    # as removing a trend often centres the series around zero, sometimes it's nicer to keep the original average level of the data
     if preserve_mean:
-        detrended = detrended + da.mean(dim=dim)
+        # remove only the varying part of the fitted line -> this keeps the mean level of the fitted period
+        trend_ref = xr.polyval(fit_da[dim], coeffs).mean(dim=dim)
+        detrended = da - (trend_full - trend_ref)
+    else:
+        # old behaviour: remove the full fitted line
+        detrended = da - trend_full
 
     return detrended
