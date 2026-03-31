@@ -343,9 +343,17 @@ def _maybe_detrend(da: xr.DataArray, plot_cfg, start: str, end: str) -> xr.DataA
     )
 
 
+def _maybe_anomaly(da: xr.DataArray, plot_cfg) -> xr.DataArray:
+    # calc anomaly if enabled in the config; otherwise return the input unchanged
+    if not plot_cfg.anomaly:
+        return da
+    da_anom, _ = to_anomaly(da, plot_cfg.baseline.start, plot_cfg.baseline.end) # convert to anomaly relative to configured baseline
+    return da_anom
+
+
 def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str) -> xr.DataArray:
     """
-    prepares the data array for plotting depending on the configured time statistic (raw, annual_mean, trend), detrending, and plotting method (map, timeseries)
+    prepares the data array for plotting depending on the configured time statistic (raw, annual_mean, trend), detrending, anomaly, and plotting method (map, timeseries)
     rules for detrending:
         - raw:
             * timeseries: detrend after area mean
@@ -356,8 +364,8 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
     """
     stat = _time_stat(plot_cfg) # get "raw, annual_mean, or trend"
     da_loc = _subset_for_location(da, plot_cfg) # create subset if requested
-    if plot_cfg.anomaly:
-        da_loc, _ = to_anomaly(da_loc, plot_cfg.baseline.start, plot_cfg.baseline.end) # convert to anomaly relative to configured baseline
+    # if plot_cfg.anomaly:
+    #     da_loc, _ = to_anomaly(da_loc, plot_cfg.baseline.start, plot_cfg.baseline.end) 
 
     if stat == "raw":
         if method == "map":
@@ -365,11 +373,13 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
             if da_loc.sizes.get("time", 0) == 0:
                 raise ValueError("No timesteps remain after time selection.")
             da_plot = _maybe_detrend(da_loc, plot_cfg, start, end)
+            da_plot = _maybe_anomaly(da_plot, plot_cfg)
             return da_plot.mean(dim="time")
         if method == "timeseries":
             # timeseries uses the spatial mean
             da_series = _area_mean(da_loc)
             da_series = _maybe_detrend(da_series, plot_cfg, start, end)
+            da_series = _maybe_anomaly(da_series, plot_cfg)
             return da_series
 
     elif stat == "annual_mean":
@@ -379,12 +389,14 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
             if da_ann.sizes.get("time", 0) == 0:
                 raise ValueError("No annual timesteps remain after aggregation.")
             da_ann = _maybe_detrend(da_ann, plot_cfg, start, end)
+            da_ann = _maybe_anomaly(da_ann, plot_cfg)
             return da_ann.mean(dim="time")
 
         if method == "timeseries":
             # compute spatial mean first, then annual mean timeseries
             da_series = annual_weighted_mean(_area_mean(da_loc))
             da_series = _maybe_detrend(da_series, plot_cfg, start, end)
+            da_series = _maybe_anomaly(da_series, plot_cfg)
             return da_series
 
     elif stat == "trend":
@@ -393,11 +405,17 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
             if da_loc.sizes.get("time", 0) < 2:
                 raise ValueError(f"Need at least 2 timesteps to compute a trend map."
                                  "\n Frequent error: check if you are trying to access data for free_run_prediction that is before its start 2015.")
-            return compute_slope_per_gridpoint(da_loc) * 10.0
+            da_trend = da_loc
+            da_trend = _maybe_detrend(da_trend, plot_cfg, start, end)
+            da_trend = _maybe_anomaly(da_trend, plot_cfg)
+            return compute_slope_per_gridpoint(da_trend) * 10.0
 
         if method == "timeseries":
             # same as for annual_mean + timeseries; the decadal trend line is computed and added later during plotting
-            return annual_weighted_mean(_area_mean(da_loc))
+            da_series = annual_weighted_mean(_area_mean(da_loc))
+            da_series = _maybe_detrend(da_series, plot_cfg, start, end)
+            da_series = _maybe_anomaly(da_series, plot_cfg)
+            return da_series
 
     raise ValueError(f"Unsupported method/stat combination: method={method}, time_stat={stat}")
 
@@ -538,6 +556,11 @@ def _get_map_bounds(cfg, plot_cfg, arrays: list[xr.DataArray], var: str, plev, d
                 plev=plev,
                 prefix=prefix,
             )
+            # if zg bounds come from the CSV, convert geopotential -> geopotential height
+            if str(var).strip().lower() == "zg":
+                vmin = float(vmin) / 9.81
+                vmax = float(vmax) / 9.81
+
             if difference:
                 # vmax_abs = max(abs(vmin), abs(vmax))
                 # return -vmax_abs, vmax_abs
@@ -623,6 +646,18 @@ def _get_map_norm(plot_cfg, vmin, vmax):
 
 
 # ---- PLOT LAYOUT HELPERS ----
+def _draw_box(ax, region, color):
+    lat0, lat1 = region["lat0"], region["lat1"]
+    lon0, lon1 = region["lon0"], region["lon1"]
+
+    # define box corners
+    lons = [lon0, lon1, lon1, lon0, lon0]
+    lats = [lat0, lat0, lat1, lat1, lat0]
+
+    ax.plot(lons, lats, transform=ccrs.PlateCarree(),
+            color=color, linewidth=2)
+
+
 def _projection_and_extent(plot_cfg):
     # chooses the map projection and geographic extent based on the location mode in the config
     location = _normalise_location(plot_cfg.location)
@@ -642,7 +677,7 @@ def _projection_and_extent(plot_cfg):
             if lon0 > lon1:
                 lon_max += 360.0
             extent = [lon_min, lon_max, min(float(plot_cfg.individual.lat0), float(plot_cfg.individual.lat1)), max(float(plot_cfg.individual.lat0), float(plot_cfg.individual.lat1))]
-        return ccrs.PlateCarree(), extent # plateCarree for standard map of just a section
+        return ccrs.PlateCarree(central_longitude=plot_cfg.global_centre), extent # plateCarree for standard map of just a section
     if location == "arctic":
         return ccrs.NorthPolarStereo(), [-180, 180, float(plot_cfg.polar.min_latitude), 90] # arctic projection
     if location == "antarctic":
@@ -690,6 +725,16 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
 
     ax.gridlines(draw_labels=True, linewidth=0.5, color="black", alpha=0.35, linestyle="--")
 
+    if plot_cfg.draw_soiBox:
+        regions = {
+            "tahiti": {"lat0": -20, "lat1": -15, "lon0": 205, "lon1": 215},
+            "darwin": {"lat0": -15, "lat1": -10, "lon0": 125, "lon1": 135},
+        }
+        _draw_box(ax, regions["tahiti"], color="red")
+        _draw_box(ax, regions["darwin"], color="blue")
+        ax.text(210, -16, "Tahiti", color="red", transform=ccrs.PlateCarree())
+        ax.text(130, -22, "Darwin", color="blue", transform=ccrs.PlateCarree())
+
     # for global and polar maps only: add cyclic point to avoid seam at 0/360°
     if location is None or location in POLAR_LOCATIONS:
         data_cyc, lon_cyc = add_cyclic_point(da.values, coord=da["lon"].values)
@@ -699,7 +744,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
             data_cyc,
             norm=_get_map_norm(plot_cfg, vmin, vmax), #mpl.colors.CenteredNorm(vcenter=0),
             levels=levels, #np.linspace(vmin, vmax, 21),
-            cmap=str(plot_cfg.colour_scheme),
+            cmap=str(plot_cfg.colour_scheme) if not plot_cfg.difference else str(plot_cfg.diff_colour),
             extend="both",
             transform=ccrs.PlateCarree(),
         )
@@ -720,7 +765,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
             da.values,
             norm=_get_map_norm(plot_cfg, vmin, vmax), #mpl.colors.CenteredNorm(vcenter=0),
             levels=levels, #np.linspace(vmin, vmax, 21),
-            cmap=str(plot_cfg.colour_scheme),
+            cmap=str(plot_cfg.colour_scheme) if not plot_cfg.difference else str(plot_cfg.diff_colour),
             extend="both",
             transform=ccrs.PlateCarree(),
         )
@@ -861,7 +906,7 @@ def _default_title(plot_cfg, method: str, long_name: str, proper_model_name: str
         mean = ", mean of entire time period readded" if plot_cfg.detrend.preserve_mean else ""
         title += f"\nDetrended over {base_start} – {base_end}{mean}"
     elif plot_cfg.detrend.enabled:
-        mean = ", mean readded" if plot_cfg.detrend.preserve_mean else ""
+        mean = ", linear slope removed" if plot_cfg.detrend.preserve_mean else ", full trend removed"
         title += f"\nDetrended over entire time period{mean}"
 
     return title
@@ -920,12 +965,14 @@ def _output_filename(method: str, var: str, plev_tag: str, model_name: str, memb
         loc_tag = f"box_{lat0_tag}-{lat1_tag}_{lon0_tag}-{lon1_tag}"
     diff_tag = "_minusERA5" if plot_cfg.difference else ""
     anom_tag = "_anom" if plot_cfg.anomaly else ""
+    tags = []
     if stat == "trend":
-        stat_tag = "_decadalTrend" 
-    elif plot_cfg.detrend.enabled:
-        stat_tag = "_detrended" 
-    else: 
-        stat_tag = ""
+        tags.append("decadalTrend")
+    if plot_cfg.detrend.enabled and plot_cfg.detrend.preserve_mean:
+        tags.append("detrended-presvMeanTrue")
+    elif plot_cfg.detrend.enabled and not plot_cfg.detrend.preserve_mean:
+        tags.append("detrended-presvMeanFalse")
+    stat_tag = f"_{'_'.join(tags)}" if tags else ""
     member = f"_{member}" if member else ""
     return f"{method}_{var}{plev_tag}_{model_tag}{member}_{loc_tag}{diff_tag}{anom_tag}_{start_tag}-{end_tag}{stat_tag}.png"
 
@@ -972,9 +1019,10 @@ def run(cfg):
         print(
             "Skipping ERA5 map in individual_plots because map_era5=true and difference=true (ERA5 - ERA5 will be zero)."
         )
-    if _time_stat(plot_cfg) == "trend" and plot_cfg.detrend.enabled:
+    if _time_stat(plot_cfg) == "trend" and plot_cfg.detrend.enabled and plot_cfg.method == "map":
         warnings.warn(
-            "You are trying to use detrending together with time_stat='trend', this will most likely remove the trend you want to analyse. Be aware of your settings. The code will continue, this is just a warning."
+            "time_stat='trend' is used together with detrending. "
+            "This is valid as a control plot: the displayed regression line should then be close to zero."
         )
     if method == "map" and plot_cfg.detrend.enabled and not plot_cfg.detrend.preserve_mean and plot_cfg.map_era5:
         warnings.warn(
