@@ -12,9 +12,10 @@ defaults:
   - plots@plots.individual_plots: individual_plots
   - plots@plots.zonal_mean: zonal_mean
   - plots@plots.wind: wind
+  - plots@plots.seasonal_cycle: seasonal_cycle
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean", "anomalies", "bias_map", "diff_map_raw", "soi", "individual_plots", "zonal_mean", "wind"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots"]
+run_plots: ["global_mean", "anomalies", "bias_map", "diff_map_raw", "soi", "individual_plots", "zonal_mean", "wind", "seasonal_cycle"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots", "zonal_mean", "wind", "seasonal_cycle"]
 
 # output behaviour
 out:
