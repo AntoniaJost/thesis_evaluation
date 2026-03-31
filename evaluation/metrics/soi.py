@@ -40,29 +40,63 @@ def sSLP(x, N: int):
     return sSLP
 
 
-def calc_soi(ds: xr.Dataset, start=None, end=None, slp_var: str = "psl",
-             tahiti_box=None, darwin_box=None):
+def calc_soi(ds: xr.Dataset, out_start=None, out_end=None, base_start=None, base_end=None, 
+             slp_var: str = "psl", tahiti_box=None, darwin_box=None):
+    
     slp = ds[slp_var] / 100.0  # Pa -> hPa
+    # select boxes
+    tahiti_lat_slice = _lat_slice(slp, tahiti_box["lat0"], tahiti_box["lat1"])
+    darwin_lat_slice = _lat_slice(slp, darwin_box["lat0"], darwin_box["lat1"])
 
-    lat_slice = _lat_slice(slp, tahiti_box["lat0"], tahiti_box["lat1"])
-    tahiti = slp.sel({"lat": lat_slice, "lon": slice(tahiti_box["lon0"], tahiti_box["lon1"])})
-    darwin = slp.sel({"lat": lat_slice, "lon": slice(darwin_box["lon0"], darwin_box["lon1"])})
+    tahiti = slp.sel({"lat": tahiti_lat_slice, "lon": slice(tahiti_box["lon0"], tahiti_box["lon1"]),})
+    darwin = slp.sel({"lat": darwin_lat_slice, "lon": slice(darwin_box["lon0"], darwin_box["lon1"]),})
+
     tahiti_mean = tahiti.mean(("lat", "lon"))
     darwin_mean = darwin.mean(("lat", "lon"))
 
-    # time frame
-    if start is None:
-        start = str(tahiti_mean.time.values[0])[:7] # first available date
-    if end is None:
-        end = str(tahiti_mean.time.values[-1])[:7]
-    clim_tahiti = tahiti_mean.sel(time=slice(start, end))
-    clim_darwin = darwin_mean.sel(time=slice(start, end))
+    # output period: this is the period for which SOI is returned
+    if out_start is None:
+        out_start = str(tahiti_mean.time.values[0])[:7]
+    if out_end is None:
+        out_end = str(tahiti_mean.time.values[-1])[:7]
 
-    N = len(clim_tahiti.time.values)
-    s_t = sSLP(clim_tahiti, N)
-    s_d = sSLP(clim_darwin, N)
+    tahiti_out = tahiti_mean.sel(time=slice(out_start, out_end))
+    darwin_out = darwin_mean.sel(time=slice(out_start, out_end))
 
-    std_monthly = np.sqrt(np.sum((s_t - s_d) ** 2) / N)
+    # baseline period: this is the period used to compute climatological mean/std
+    if base_start is None:
+        base_start = out_start
+    if base_end is None:
+        base_end = out_end
+
+    tahiti_base = tahiti_mean.sel(time=slice(base_start, base_end))
+    darwin_base = darwin_mean.sel(time=slice(base_start, base_end))
+
+    if tahiti_base.sizes.get("time", 0) == 0 or darwin_base.sizes.get("time", 0) == 0:
+        raise ValueError(
+            f"SOI baseline period {base_start} to {base_end} contains no data."
+        )
+
+    # climatological means from baseline
+    tahiti_clim_mean = tahiti_base.mean("time")
+    darwin_clim_mean = darwin_base.mean("time")
+
+    # climatological std from baseline
+    N_t = tahiti_base.sizes["time"]
+    N_d = darwin_base.sizes["time"]
+
+    tahiti_std = np.sqrt(((tahiti_base - tahiti_clim_mean) ** 2).sum("time") / N_t)
+    darwin_std = np.sqrt(((darwin_base - darwin_clim_mean) ** 2).sum("time") / N_d)
+
+    # standardise full output period using baseline mean/std
+    s_t = (tahiti_out - tahiti_clim_mean) / tahiti_std
+    s_d = (darwin_out - darwin_clim_mean) / darwin_std
+
+    # monthly std of the Tahiti-Darwin difference, computed from baseline
+    diff_base = ((tahiti_base - tahiti_clim_mean) / tahiti_std) - ((darwin_base - darwin_clim_mean) / darwin_std)
+    N_diff = diff_base.sizes["time"]
+    std_monthly = np.sqrt((diff_base ** 2).sum("time") / N_diff)
+
     soi = (s_t - s_d) / std_monthly
     return soi
 
@@ -139,16 +173,22 @@ def soi_output_filename(model_name: str, member: str, start: str, end: str, hist
 def run(cfg):
     plot_cfg = cfg.plots.soi
     ensure_allowed_var(cfg, plot_cfg.variable)
+    add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""
 
     if plot_cfg.variable != "psl":
         raise ValueError("SOI only supports variable='psl'.")
 
     start, end = resolve_period(cfg, plot_cfg)
+    base_start = str(plot_cfg.baseline.start)[:7] if plot_cfg.baseline.start is not None else None
+    base_end = str(plot_cfg.baseline.end)[:7] if plot_cfg.baseline.end is not None else None
+    out_start = str(start)[:7]
+    out_end = str(end)[:7]
 
     outdir = os.path.join(
         hydra.utils.get_original_cwd(),
         cfg.out.dir,
         "soi",
+        add_dir,
     )
     os.makedirs(outdir, exist_ok=True)
 
@@ -161,8 +201,10 @@ def run(cfg):
 
     soi_era5 = calc_soi(
         era5_ds,
-        start=start[:7],
-        end=end[:7],
+        out_start=out_start,
+        out_end=out_end,
+        base_start=base_start,
+        base_end=base_end,
         slp_var=era5_var_name,
         tahiti_box=plot_cfg.regions.tahiti,
         darwin_box=plot_cfg.regions.darwin,
@@ -193,8 +235,10 @@ def run(cfg):
 
             soi_members[member] = calc_soi(
                 ds_model,
-                start=start[:7],
-                end=end[:7],
+                out_start=out_start,
+                out_end=out_end,
+                base_start=base_start,
+                base_end=base_end,
                 slp_var=plot_cfg.variable,
                 tahiti_box=plot_cfg.regions.tahiti,
                 darwin_box=plot_cfg.regions.darwin,
