@@ -23,6 +23,7 @@ from evaluation.general_functions import (
     iter_vars_and_plevs,
     plev_strings,
     get_range_from_csv,
+    format_unit_for_plot
 )
 
 
@@ -202,7 +203,7 @@ def run(cfg):
     for item in iter_vars_and_plevs(cfg, plot_cfg):
         var = item["var"]
         long_name = item["long_name"]
-        unit = item["unit"]
+        unit = format_unit_for_plot(item["unit"])
         start = item["start"]
         end = item["end"]
 

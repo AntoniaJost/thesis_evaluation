@@ -287,6 +287,21 @@ def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default:
     raise ValueError(f"Unknown conversion op: {op}")
 
 
+def format_unit_for_plot(unit: str) -> str:
+    if unit is None:
+        return ""
+    unit = str(unit).strip()
+    replacements = {
+        "m s-1": r"m s$^{-1}$",
+        "Pa s-1": r"Pa s$^{-1}$",
+        "kg kg-1": r"kg kg$^{-1}$",
+        "kg m-2 s-1": r"kg m$^{-2}$ s$^{-1}$",
+        "W m-2": r"W m$^{-2}$",
+        "m2 s-2": r"m$^{2}$ s$^{-2}$",
+    }
+    return replacements.get(unit, unit)
+
+
 def ensemble_mean_as_member(member_to_da: Dict[str, xr.DataArray], name: str = "mean") -> Dict[str, xr.DataArray]:
     """
     compute mean across members and add as an extra "member"
