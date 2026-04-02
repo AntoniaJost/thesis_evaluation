@@ -1144,8 +1144,9 @@ def run(cfg):
             plev_title, plev_tag = plev_strings(plev)
             for season in seasons:
                 # 3. load and prepare era5 data
-                era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
-                era5, unit_here = conversion_rules(var, era5, cfg, "era5", unit)
+                era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+                era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+                era5, unit_here = conversion_rules(var, era5, cfg, era5_source, unit)
                 era5_prepared = _prepare_field(era5, plot_cfg, method, start_sel, end_sel, season)
                 time_label = _time_label(start, end, method, era5, plot_cfg.freq, plot_cfg, season)
                 single_time = pd.Timestamp(start) == pd.Timestamp(end)

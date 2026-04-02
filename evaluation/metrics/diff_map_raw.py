@@ -111,8 +111,9 @@ def run(cfg):
                 unit_here = unit
 
                 # ERA5 prepared field
-                da_era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
-                da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_here)
+                da_era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+                era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+                da_era5, unit_here = conversion_rules(var, da_era5, cfg, era5_source, unit_here)
                 era5_field = _prepare_field(da_era5, plot_cfg, method="map", start=start_sel, end=end_sel, season=plot_cfg.season)
 
                 model_field = {}

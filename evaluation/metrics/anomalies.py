@@ -159,8 +159,9 @@ def run(cfg):
 
             unit_here = unit
             # compute ERA5 annual GM
-            era5_da = open_era5_da(cfg, var=var, start=start, end=end, plev=plev)
-            era5_da, unit_here = conversion_rules(var, era5_da, cfg, "era5", unit_here)
+            era5_da = open_era5_da(cfg, var=var, start=start, end=end, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+            era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+            era5_da, unit_here = conversion_rules(var, era5_da, cfg, era5_source, unit_here)
             gm_era5 = area_weighted_global_mean(era5_da)
             agm_era5 = annual_weighted_mean(gm_era5)
 

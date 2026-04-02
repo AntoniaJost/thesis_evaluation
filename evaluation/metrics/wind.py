@@ -200,8 +200,8 @@ def _prepare_era5_fields(cfg, plot_cfg, plev, start: str, end: str):
     u_var, v_var = _wind_component_names(plev)
     plev_arg = None if plev == "surface" else plev
 
-    u = open_era5_da(cfg, var=u_var, start=start, end=end, plev=plev_arg)
-    v = open_era5_da(cfg, var=v_var, start=start, end=end, plev=plev_arg)
+    u = open_era5_da(cfg, var=u_var, start=start, end=end, plev=plev_arg, freq=plot_cfg.freq, grid=plot_cfg.grid)
+    v = open_era5_da(cfg, var=v_var, start=start, end=end, plev=plev_arg, freq=plot_cfg.freq, grid=plot_cfg.grid)
     return _compute_scalar_and_vector_climatology(u, v, plot_cfg)
 
 
@@ -236,7 +236,7 @@ def _prepare_era5_background_field(cfg, plot_cfg, start: str, end: str) -> xr.Da
         raise ValueError("_prepare_era5_background_field should not be called for background='speed'.")
 
     if bg_mode == "pressure":
-        da = open_era5_da(cfg, var="psl", start=start, end=end, plev=None)
+        da = open_era5_da(cfg, var="psl", start=start, end=end, plev=None, freq=plot_cfg.freq, grid=plot_cfg.grid)
         return _time_average(da, plot_cfg)
 
     raise ValueError(f"Unsupported background mode: {bg_mode}")

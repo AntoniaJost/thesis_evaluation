@@ -683,7 +683,7 @@ def run(cfg):
             # load ERA5 once per variable if it is needed either as reference or as panel
             era5_raw = None
             if need_era5_data:
-                era5_raw = open_era5_da_raw(cfg, var, start, end)
+                era5_raw = open_era5_da_raw(cfg, var, start, end, plot_cfg.freq, plot_cfg.grid)
                 era5_raw = _select_requested_plevs(
                     era5_raw,
                     var=var,
@@ -814,8 +814,9 @@ def run(cfg):
                             )
                         else:
                             raise ValueError("reference.type must be 'era5' or 'model'")
-
-                        ref_source = "era5" if plot_cfg.reference.type == "era5" else "model"
+                        
+                        era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+                        ref_source = era5_source if plot_cfg.reference.type == "era5" else "model"
                         ref_2d, _ = _prepare_zonal_mean(
                             ref_raw,
                             var,
@@ -841,12 +842,12 @@ def run(cfg):
                         if plot_cfg.reduce_era5_to_same_levels
                         else era5_raw
                     )
-
+                    era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
                     era5_2d, unit = _prepare_zonal_mean(
                         era5_for_plot,
                         var,
                         cfg,
-                        "era5",
+                        era5_source,
                         unit_default,
                         plot_cfg,
                         time_selection

@@ -143,8 +143,9 @@ def run(cfg):
                 models_agm[model_name] = member_agm
 
             # --- ERA5 annual global mean (with optional offsets)
-            era5_da = open_era5_da(cfg, var=var, start=start, end=end, plev=plev)
-            era5_da, unit = conversion_rules(var, era5_da, cfg, "era5", unit)
+            era5_da = open_era5_da(cfg, var=var, start=start, end=end, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+            era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+            era5_da, unit = conversion_rules(var, era5_da, cfg, era5_source, unit)
 
             agm_era5_by_offset = {}
             lrg_era5_by_offset = {}
