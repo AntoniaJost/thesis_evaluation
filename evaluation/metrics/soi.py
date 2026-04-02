@@ -193,8 +193,9 @@ def run(cfg):
     os.makedirs(outdir, exist_ok=True)
 
     # --- load ERA5
-    da_era5 = open_era5_da(cfg, var=plot_cfg.variable, start=start, end=end)
-    da_era5, _ = conversion_rules(plot_cfg.variable, da_era5, cfg, "era5")
+    da_era5 = open_era5_da(cfg, var=plot_cfg.variable, start=start, end=end, freq=plot_cfg.freq, grid=plot_cfg.grid)
+    era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+    da_era5, _ = conversion_rules(plot_cfg.variable, da_era5, cfg, era5_source)
 
     era5_var_name = cfg.variables.era5_name[plot_cfg.variable]
     era5_ds = da_era5.to_dataset(name=era5_var_name)

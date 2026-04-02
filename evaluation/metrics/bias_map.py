@@ -243,8 +243,9 @@ def run(cfg):
                 unit_here = unit
 
                 # ERA5 slope
-                da_era5 = open_era5_da(cfg, var=var, start=start, end=end, plev=plev)
-                da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_here)
+                da_era5 = open_era5_da(cfg, var=var, start=start, end=end, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+                era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+                da_era5, unit_here = conversion_rules(var, da_era5, cfg, era5_source, unit_here)
                 era5_slope = compute_slope_per_gridpoint(da_era5) * 10.0  # per decade
 
                 model_slope = {}

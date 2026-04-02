@@ -85,6 +85,16 @@ def model_file_pattern(model_cfg, cfg, member: str, var: str, modelname: str, fr
     return f"{model_cfg.root}/{member}/{table}/{var}/{grid}/{pat}" # full path
 
 
+def era5_daily_file_pattern(cfg, var: str, grid: str = "gn") -> str:
+    """
+    expected daily ERA5 CMOR structure:
+      {root}/{var}/{grid}/{var}_day_era5_aimip_ERA5_{grid}_*.nc
+    """
+    root = cfg.datasets.era5.daily.root
+    pattern = cfg.datasets.era5.daily.pattern
+    return f"{root}/{var}/{grid}/{pattern.format(var=var, grid=grid)}"
+
+
 def normalise_vars(var_cfg) -> List:
     """
     normalise plot_cfg.variable to a list
@@ -195,7 +205,7 @@ def open_model_da(model_cfg, cfg, member: str, var: str, modelname: str, freq: s
     return da
 
 
-def open_era5_da_raw(cfg, var: str, start: str, end: str) -> xr.DataArray:
+def open_era5_da_raw(cfg, var: str, start: str, end: str, freq: str = "monthly", grid: str = "gn") -> xr.DataArray:
     """
     Open ERA5 variable without selecting a pressure level.
     needed for zonal_mean
@@ -206,12 +216,20 @@ def open_era5_da_raw(cfg, var: str, start: str, end: str) -> xr.DataArray:
             f"Available mappings: {list(cfg.variables.era5_name.keys())}"
         )
 
-    era5_var = cfg.variables.era5_name[var]
-    root = cfg.datasets.era5.root
-    pattern = cfg.datasets.era5.pattern
+    if freq == "monthly":
+        era5_var = cfg.variables.era5_name[var] 
+    elif freq == "daily":
+        era5_var = var
 
-    file_var = "ci" if var == "siconc" else var
-    path = f"{root}/{pattern.format(var=file_var)}"
+    if freq == "monthly": 
+        root = cfg.datasets.era5.monthly.root
+        pattern = cfg.datasets.era5.monthly.pattern
+        file_var = "ci" if var == "siconc" else var
+        path = f"{root}/{pattern.format(var=file_var)}"
+    elif freq == "daily":
+        path = open_single_match(era5_daily_file_pattern(cfg, var=var, grid=grid))        
+    else:
+        raise ValueError(f"Unsupported freq for ERA5 loading: {freq}. Expected 'monthly' or 'daily'.")
 
     ds = xr.open_dataset(path).sel(time=slice(start, end))
 
@@ -224,33 +242,36 @@ def open_era5_da_raw(cfg, var: str, start: str, end: str) -> xr.DataArray:
     return ds[era5_var]
 
 
-def open_era5_da(cfg, var: str, start: str, end: str, plev=None) -> xr.DataArray:
+def open_era5_da(cfg, var: str, start: str, end: str, plev=None,  freq: str = "monthly", grid: str = "gn") -> xr.DataArray:
     # map to ERA5 variable naming
-    if var not in cfg.variables.era5_name:
-        raise KeyError(
-            f"No ERA5 name mapping for var='{var}'. "
-            f"Available mappings: {list(cfg.variables.era5_name.keys())}"
-        )
-    era5_var = cfg.variables.era5_name[var]
-    root = cfg.datasets.era5.root
-    pattern = cfg.datasets.era5.pattern
-    file_var = "ci" if var == "siconc" else var # handle case of sea ice conc., which uses other variable from era5 (ci, instead of siconc)
-    path = f"{root}/{pattern.format(var=file_var)}"
+    # if var not in cfg.variables.era5_name:
+    #     raise KeyError(
+    #         f"No ERA5 name mapping for var='{var}'. "
+    #         f"Available mappings: {list(cfg.variables.era5_name.keys())}"
+    #     )
+    # era5_var = cfg.variables.era5_name[var]
+    # root = cfg.datasets.era5.root
+    # pattern = cfg.datasets.era5.pattern
+    # file_var = "ci" if var == "siconc" else var # handle case of sea ice conc., which uses other variable from era5 (ci, instead of siconc)
+    # path = f"{root}/{pattern.format(var=file_var)}"
 
-    ds = xr.open_dataset(path).sel(time=slice(start, end))
-    if era5_var not in ds:
-        raise KeyError(
-            f"ERA5 variable '{era5_var}' not found in {path}. "
-            f"Available: {list(ds.data_vars)}"
-        )
-    da = ds[era5_var]
-    da = select_plev_if_needed(da, var=var, plev=plev, context=path)
+    # ds = xr.open_dataset(path).sel(time=slice(start, end))
+    # if era5_var not in ds:
+    #     raise KeyError(
+    #         f"ERA5 variable '{era5_var}' not found in {path}. "
+    #         f"Available: {list(ds.data_vars)}"
+    #     )
+    # da = ds[era5_var]
+    da = open_era5_da_raw(cfg, var=var, start=start, end=end, freq=freq, grid=grid)
+    context = f"ERA5 ({freq})"
+    da = select_plev_if_needed(da, var=var, plev=plev, context=context)
     return da
 
 
 def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default: str = "") -> tuple[xr.DataArray, str]:
     """
     convert units if entry in config.yaml available, updates unit string
+    for daily era5 data, which is cmorised, the same conversions are applied as for the model data
     K <-> °C, scalar to percent
     needed for:
       - ta & tas
@@ -267,7 +288,22 @@ def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default:
     # case tos_MODEL: applies_to = "era5" and source = "model" -> 'era5' != "both" (TRUE) and 'era5' !='model' (TRUE) -> TRUE (returns da)
     # case tas_ERA5: applies_to = 'both' and source='model' -> 'both' != 'both' (FALSE) and 'both' !='era5' (TRUE) -> FALSE (continues)
     # case tas_MODEL: applies_to = 'both' and source='era5' -> 'both' != 'both' (FALSE) and 'both' !='model' (TRUE) -> FALSE (continues)
-    if applies_to != "both" and applies_to != source:
+    valid_sources = {"model", "era5_natural", "era5_cmor"}
+    if source not in valid_sources:
+        raise ValueError(f"Unknown source={source!r}. Expected one of {sorted(valid_sources)}")
+    apply_rule = False
+    if applies_to == "both":
+        apply_rule = True
+    elif applies_to == "model" and source == "model":
+        apply_rule = True
+    elif applies_to == "era5" and source in {"era5_natural", "era5_cmor"}:
+        apply_rule = True
+    elif applies_to == "era5_natural" and source == "era5_natural":
+        apply_rule = True
+    elif applies_to == "era5_cmor" and source == "era5_cmor":
+        apply_rule = True
+
+    if not apply_rule:
         return da, unit_default
     
     unit = getattr(rule, "unit", unit_default)

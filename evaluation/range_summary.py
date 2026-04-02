@@ -235,7 +235,7 @@ def write_model_minus_era5_rows(cfg, path: str):
                     print(f" diff rows: {model_name} {member} var={var} plev={plev}")
 
                     da_era5 = select_plev(era5_full, plev)
-                    da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_default)
+                    da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5_natural", unit_default)
 
                     da_model = select_plev(da_model_full, plev)
                     da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
@@ -745,7 +745,7 @@ def main(cfg):
                 print(f" ERA5 plev={plev}")
 
                 da = select_plev(era5_full, plev)
-                da, unit_here = conversion_rules(var, da, cfg, "era5", unit_default)
+                da, unit_here = conversion_rules(var, da, cfg, "era5_natural", unit_default)
 
                 row = build_summary_row(
                     da,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import numpy as np
-import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -19,7 +18,6 @@ from evaluation.general_functions import (
     should_compute_output,
     iter_vars_and_plevs,
     plev_strings,
-    get_range_from_csv,
     format_unit_for_plot
 )
 
@@ -29,9 +27,6 @@ from evaluation.metrics.bias_map import (
     add_bottom_numbers,
     area_weighted_mean_map,
     area_weighted_rmse_map,
-    nice_bin_size,
-    build_zero_bin_levels,
-    symmetric_ticks_from_levels,
 )
 
 from evaluation.metrics.individual_plots import (
@@ -39,6 +34,8 @@ from evaluation.metrics.individual_plots import (
     _selection_bounds_for_freq,
     _get_map_bounds,
     _time_stat,
+    _map_levels_and_ticks,
+    _get_map_norm
 )
 
 
@@ -48,28 +45,6 @@ def _validate_cfg(plot_cfg):
         raise ValueError(
             f"plots.diff_map_raw.time_stat must be 'raw', got: {stat}"
         )
-    
-
-def _build_levels_and_ticks(vmin, vmax, target_bins, set_size_of_bins, ticks_everyX, keep_0_tick):
-    if set_size_of_bins is None:
-        bin_size = nice_bin_size(vmin, vmax, target_bins)
-    else:
-        bin_size = set_size_of_bins
-
-    levels = build_zero_bin_levels(
-        vmin=vmin,
-        vmax=vmax,
-        bin_size=bin_size,
-    )
-    norm = mpl.colors.CenteredNorm(vcenter=0)
-    ticks = symmetric_ticks_from_levels(
-        levels,
-        vmin,
-        vmax,
-        ticks_everyX,
-        keep_0_tick,
-    )
-    return levels, norm, ticks
 
 
 def run(cfg):
@@ -136,8 +111,9 @@ def run(cfg):
                 unit_here = unit
 
                 # ERA5 prepared field
-                da_era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
-                da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_here)
+                da_era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+                era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+                da_era5, unit_here = conversion_rules(var, da_era5, cfg, era5_source, unit_here)
                 era5_field = _prepare_field(da_era5, plot_cfg, method="map", start=start_sel, end=end_sel, season=plot_cfg.season)
 
                 model_field = {}
@@ -179,28 +155,30 @@ def run(cfg):
                 nrows = 3
 
                 # colour settings for model / ERA5 rows
-                cmap_model = mpl.cm.get_cmap(plot_cfg.cmap_model)
-                vmin_model, vmax_model = _get_map_bounds(
-                    cfg=cfg,
-                    plot_cfg=plot_cfg,
-                    arrays=list(model_field.values()) + [era5_field],
-                    var=var,
-                    plev=plev,
-                    difference=False,
-                    anomaly=False,
-                    single_time=single_time,
+                cmap_model = mpl.cm.get_cmap(plot_cfg.colourbar.cmap_model)
+                if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
+                    vmin_model = float(plot_cfg.colourbar.manual_vmin)
+                    vmax_model = float(plot_cfg.colourbar.manual_vmax)
+                else:
+                    vmin_model, vmax_model = _get_map_bounds(
+                        cfg=cfg,
+                        plot_cfg=plot_cfg,
+                        arrays=list(model_field.values()) + [era5_field],
+                        var=var,
+                        plev=plev,
+                        difference=False,
+                        anomaly=False,
+                        single_time=single_time,
                 )
-                levels_model, norm_model, ticks_model = _build_levels_and_ticks(
-                    vmin=vmin_model,
-                    vmax=vmax_model,
-                    target_bins=plot_cfg.target_bins,
-                    set_size_of_bins=plot_cfg.set_size_of_bins,
-                    ticks_everyX=plot_cfg.ticks_everyX_model,
-                    keep_0_tick=plot_cfg.keep_0_tick_model,
-                )
+                if plot_cfg.colourbar.use_custom_bins:
+                    levels_model, ticks_model = _map_levels_and_ticks(vmin_model, vmax_model, plot_cfg.colourbar.ticks_everyX_model, plot_cfg.colourbar.keep_0_tick_model, plot_cfg)
+                else:
+                    levels_model = np.linspace(vmin_model, vmax_model, 21)
+                    ticks_model = None
+                norm_model = _get_map_norm(plot_cfg, vmin_model, vmax_model)
 
                 # colour settings for difference row
-                cmap_diff = mpl.cm.get_cmap(plot_cfg.cmap_diff)
+                cmap_diff = mpl.cm.get_cmap(plot_cfg.colourbar.cmap_diff)
                 vmin_diff, vmax_diff = _get_map_bounds(
                     cfg=cfg,
                     plot_cfg=plot_cfg,
@@ -211,14 +189,12 @@ def run(cfg):
                     anomaly=False,
                     single_time=single_time,
                 )
-                levels_diff, norm_diff, ticks_diff = _build_levels_and_ticks(
-                    vmin=vmin_diff,
-                    vmax=vmax_diff,
-                    target_bins=plot_cfg.target_bins_diff,
-                    set_size_of_bins=plot_cfg.set_size_of_bins_diff,
-                    ticks_everyX=plot_cfg.ticks_everyX_diff,
-                    keep_0_tick=plot_cfg.keep_0_tick_diff,
-                )
+                if plot_cfg.colourbar.use_custom_bins:
+                    levels_diff, ticks_diff = _map_levels_and_ticks(vmin_diff, vmax_diff,  plot_cfg.colourbar.ticks_everyX_diff, plot_cfg.colourbar.keep_0_tick_diff, plot_cfg)
+                else:
+                    levels_diff = np.linspace(vmin_diff, vmax_diff, 21)
+                    ticks_diff = None
+                norm_diff = _get_map_norm(plot_cfg, vmin_diff, vmax_diff)
 
                 coastline_colour = str(plot_cfg.coastline_colour)
 
@@ -246,7 +222,10 @@ def run(cfg):
                     )
                 else:
                     # stat_label = "raw field" if _time_stat(plot_cfg) == "raw" else ""
-                    title = f"{long_name} ({var}{plev_title}): {proper_model_name} vs ERA5 | {season_tag} | {start_str} to {end_str}"
+                    if plot_cfg.season == None or plot_cfg.season == "full":
+                        title = f"{long_name} ({var}{plev_title}): {proper_model_name} vs ERA5 | {start_str} to {end_str}"
+                    else:
+                        title = f"{long_name} ({var}{plev_title}): {proper_model_name} vs ERA5 | {plot_cfg.season} | {start_str} to {end_str}"
 
                 if plot_cfg.detrend.enabled and plot_cfg.detrend.preserve_mean:
                     title += " (detrended, mean readded)"

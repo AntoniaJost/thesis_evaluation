@@ -290,8 +290,9 @@ def run(cfg):
                 continue
             
             # ERA5
-            era5_da = _open_era5_daily_da(plot_cfg, var=var, start=start, end=end, plev=plev)
-            era5_da, unit_here = conversion_rules(var, era5_da, cfg, "era5", unit)
+            era5_da = _open_era5_daily_da(plot_cfg, var=var, start=start, end=end, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+            era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+            era5_da, unit_here = conversion_rules(var, era5_da, cfg, era5_source, unit)
             era5_region = _subset_for_region(era5_da, plot_cfg)
             era5_daily = _area_mean(era5_region)
 

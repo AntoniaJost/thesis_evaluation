@@ -164,9 +164,9 @@ def main(cfg: DictConfig):
             any_model_written = False
 
             # ERA5 once per variable, on model pressure levels and converted
-            era5 = open_era5_da_raw(cfg, var, start, end)
+            era5 = open_era5_da_raw(cfg, var, start, end, "monthly", "gn")
             era5 = _select_model_plevs(era5, var=var, context="ERA5")
-            era5, era5_unit = conversion_rules(var, era5, cfg, "era5", "")
+            era5, era5_unit = conversion_rules(var, era5, cfg, "era5_natural", "")
             era5 = normalise_monthly_time(era5)
             era5 = era5.astype("float32")
 

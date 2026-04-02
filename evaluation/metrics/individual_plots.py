@@ -688,7 +688,7 @@ def _use_zero_centered_bins(plot_cfg, vmin: float, vmax: float) -> bool:
     return bool(plot_cfg.difference or plot_cfg.anomaly or (vmin <= 0 <= vmax))
 
 
-def _map_levels_and_ticks(vmin: float, vmax: float, plot_cfg) -> tuple[np.ndarray | None, np.ndarray | None]:
+def _map_levels_and_ticks(vmin: float, vmax: float, tick: int, tick_zero: bool, plot_cfg) -> tuple[np.ndarray | None, np.ndarray | None]:
     """
     determines discrete colourbar bins (levels) and ticks for map plots when use_custom_bins are enabled
     if disabled, returns (None, None)
@@ -713,14 +713,14 @@ def _map_levels_and_ticks(vmin: float, vmax: float, plot_cfg) -> tuple[np.ndarra
             levels,
             vmin,
             vmax,
-            keep_every=int(cbar_cfg.tick_every),
-            include_zero=bool(cbar_cfg.include_zero_tick),
+            keep_every=tick, #int(cbar_cfg.tick_every),
+            include_zero=tick_zero #bool(cbar_cfg.include_zero_tick),
         )
     else:
         levels = np.arange(vmin, vmax + bin_size, bin_size)
         if levels[-1] < vmax:
             levels = np.append(levels, vmax)
-        tick_every = int(cbar_cfg.tick_every)
+        tick_every = tick
         ticks = levels[::tick_every]
         if ticks[-1] != levels[-1]:
             ticks = np.append(ticks, levels[-1])
@@ -1144,8 +1144,9 @@ def run(cfg):
             plev_title, plev_tag = plev_strings(plev)
             for season in seasons:
                 # 3. load and prepare era5 data
-                era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
-                era5, unit_here = conversion_rules(var, era5, cfg, "era5", unit)
+                era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+                era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
+                era5, unit_here = conversion_rules(var, era5, cfg, era5_source, unit)
                 era5_prepared = _prepare_field(era5, plot_cfg, method, start_sel, end_sel, season)
                 time_label = _time_label(start, end, method, era5, plot_cfg.freq, plot_cfg, season)
                 single_time = pd.Timestamp(start) == pd.Timestamp(end)
@@ -1249,7 +1250,7 @@ def run(cfg):
                             )
                         print(f"diff: {bool(plot_cfg.difference)}, anomaly: {bool(plot_cfg.anomaly)}, vmin: {vmin}, vmax: {vmax}")
                         if plot_cfg.colourbar.use_custom_bins:
-                            levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
+                            levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg.colourbar.tick_every, plot_cfg.colourbar.include_zero_tick, plot_cfg)
                         else:
                             levels = np.linspace(vmin, vmax, 21)
                             ticks = None
@@ -1331,7 +1332,7 @@ def run(cfg):
                         )
 
                     if plot_cfg.colourbar.use_custom_bins:
-                        levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
+                        levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg.colourbar.tick_every, plot_cfg.colourbar.include_zero_tick, plot_cfg)
                     else:
                         levels = np.linspace(vmin, vmax, 21)
                         ticks = None

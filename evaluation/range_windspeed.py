@@ -146,8 +146,8 @@ def iter_model_speed_arrays(cfg, model_names: list[str], plev, *, difference: bo
 
     era5_speed = None
     if difference:
-        era5_u = open_era5_da(cfg, var=u_var, start=START, end=END, plev=plev_arg)
-        era5_v = open_era5_da(cfg, var=v_var, start=START, end=END, plev=plev_arg)
+        era5_u = open_era5_da(cfg, var=u_var, start=START, end=END, plev=plev_arg, freq="monthly", grid="gn")
+        era5_v = open_era5_da(cfg, var=v_var, start=START, end=END, plev=plev_arg, freq="monthly", grid="gn")
 
         if FREQ == "monthly":
             era5_u = normalise_monthly_time(era5_u)
