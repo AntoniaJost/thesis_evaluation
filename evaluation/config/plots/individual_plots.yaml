@@ -9,6 +9,7 @@ time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
+season: full # options: full (entire year), DJF, MAM, JJA, SON
 
 # calc basics
 method: map # options: timeseries, map
@@ -29,8 +30,9 @@ include_ensemble_mean_as_member: true
 only_mean: true # if this is set to true, include_ensemble_mean_as_member also has to be true
 
 # map basics
-location: global # options: arctic, antarctic, individual, global (=null)
+location: global # options: arctic, antarctic, individual, global (=null), ortho
 global_centre: 0 # only relevant if location=global, longitude that is in centre (0≈Africa, 180≈pacific ocean)
+central_latitude: 35.0
 draw_soiBox: false # add a red and blue box around Tahiti and Darwin Region
 individual: # will only become relevant if location=individual
   # UPPER LEFT corner of bounding box
