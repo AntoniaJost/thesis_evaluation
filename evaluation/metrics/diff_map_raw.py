@@ -20,6 +20,7 @@ from evaluation.general_functions import (
     iter_vars_and_plevs,
     plev_strings,
     get_range_from_csv,
+    format_unit_for_plot
 )
 
 from evaluation.metrics.bias_map import (
@@ -84,7 +85,7 @@ def run(cfg):
     for item in iter_vars_and_plevs(cfg, plot_cfg):
         var = item["var"]
         long_name = item["long_name"]
-        unit = item["unit"]
+        unit = format_unit_for_plot(item["unit"])
         start = item["start"]
         end = item["end"]
 
@@ -121,8 +122,12 @@ def run(cfg):
                 elif plot_cfg.range_source.percentile == 95:
                     perc = "_95p"
 
+                if plot_cfg.season == None or plot_cfg.season == "full":
+                    season_tag = ""
+                else:
+                    season_tag = f"_{plot_cfg.season}"
                 detrend_tag = "_detrended" if plot_cfg.detrend.enabled else ""
-                fname = f"diff_raw_{var}{plev_tag}_{model_tag}_{stat_tag}_{start_tag}-{end_tag}{detrend_tag}{perc}.png"
+                fname = f"diff_raw_{var}{plev_tag}_{model_tag}{season_tag}_{stat_tag}_{start_tag}-{end_tag}{detrend_tag}{perc}.png"
                 outfile = os.path.join(outdir, fname)
 
                 if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
@@ -133,7 +138,7 @@ def run(cfg):
                 # ERA5 prepared field
                 da_era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
                 da_era5, unit_here = conversion_rules(var, da_era5, cfg, "era5", unit_here)
-                era5_field = _prepare_field(da_era5, plot_cfg, method="map", start=start_sel, end=end_sel)
+                era5_field = _prepare_field(da_era5, plot_cfg, method="map", start=start_sel, end=end_sel, season=plot_cfg.season)
 
                 model_field = {}
                 diff_field = {}
@@ -153,7 +158,7 @@ def run(cfg):
                         plev=plev,
                     )
                     da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
-                    prepared = _prepare_field(da_model, plot_cfg, method="map", start=start_sel, end=end_sel)
+                    prepared = _prepare_field(da_model, plot_cfg, method="map", start=start_sel, end=end_sel, season=plot_cfg.season)
                     model_field[m] = prepared
                     diff_field[m] = (prepared - era5_field).rename("difference")
 
@@ -237,10 +242,11 @@ def run(cfg):
                         time_stat=_time_stat(plot_cfg),
                         start=start_str,
                         end=end_str,
+                        season=plot_cfg.season,
                     )
                 else:
                     # stat_label = "raw field" if _time_stat(plot_cfg) == "raw" else ""
-                    title = f"{long_name} ({var}{plev_title}): {proper_model_name} vs ERA5 | {start_str} to {end_str}"
+                    title = f"{long_name} ({var}{plev_title}): {proper_model_name} vs ERA5 | {season_tag} | {start_str} to {end_str}"
 
                 if plot_cfg.detrend.enabled and plot_cfg.detrend.preserve_mean:
                     title += " (detrended, mean readded)"
