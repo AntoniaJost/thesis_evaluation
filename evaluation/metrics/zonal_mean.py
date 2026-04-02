@@ -228,6 +228,26 @@ def _subset_for_region(da: xr.DataArray, plot_cfg) -> xr.DataArray:
     raise ValueError(f"Unsupported region: {region}")
 
 
+def _format_lat(lat: float) -> str:
+    lat = float(lat)
+    if lat > 0:
+        return f"{lat:g}°N"
+    if lat < 0:
+        return f"{abs(lat):g}°S"
+    return "0°"
+
+
+def _format_lon(lon: float) -> str:
+    lon = _wrap_lon_360(float(lon))
+    if lon == 0:
+        return "0°"
+    if lon == 180:
+        return "180°"
+    if lon < 180:
+        return f"{lon:g}°E"
+    return f"{360 - lon:g}°W"
+
+
 def _region_tag_and_label(plot_cfg) -> tuple[str, str]:
     region = _normalise_region(getattr(plot_cfg, "region", "global"))
     if region != "individual":
@@ -251,9 +271,14 @@ def _region_tag_and_label(plot_cfg) -> tuple[str, str]:
     lon0_tag = f"{lon0:g}"
     lon1_tag = f"{lon1:g}"
 
+    lat0_label = _format_lat(lat0)
+    lat1_label = _format_lat(lat1)
+    lon0_label = _format_lon(lon0)
+    lon1_label = _format_lon(lon1)
+
     return (
         f"box_{lat0_tag}_{lat1_tag}_{lon0_tag}_{lon1_tag}",
-        f"Area ({lat0_tag} to {lat1_tag}°, {lon0_tag} to {lon1_tag}°E)",
+        f"Area: {lat0_label} to {lat1_label}, {lon0_label} to {lon1_label}",
     )
 
 
@@ -406,7 +431,7 @@ def _get_zonal_vmin_vmax(cfg, plot_cfg, var: str):
     return vmin, vmax
 
 
-def _plot_panel(ax, da2d: xr.DataArray, title: str, cmap: str, plot_cfg, vmin=None, vmax=None, levels=None, show_ylabel: bool = True):
+def _plot_panel(ax, da2d: xr.DataArray, title: str, cmap: str, plot_cfg, vmin=None, vmax=None, levels=None, show_ylabel: bool = True, region: str = ""):
     plev = da2d["plev"].values
 
     # convert Pa -> hPa for plotting if needed
@@ -458,8 +483,28 @@ def _plot_panel(ax, da2d: xr.DataArray, title: str, cmap: str, plot_cfg, vmin=No
     ax.set_yticklabels([str(p) for p in major_ticks])
     ax.set_yticks(minor_ticks, minor=True)
 
-    ax.set_xlim(-90, 90)
-    ax.set_xticks([-90, -60, -30, 0, 30, 60, 90])
+    if region == "Global":
+        ax.set_xlim(-90, 90)
+        ax.set_xticks([-90, -60, -30, 0, 30, 60, 90])
+    else:
+        # dynamic latitude axis
+        lat_vals = da2d["lat"].values
+        lat_min = float(np.nanmin(lat_vals))
+        lat_max = float(np.nanmax(lat_vals))
+        ax.set_xlim(lat_min, lat_max)
+
+        span = lat_max - lat_min
+        if span <= 30:
+            step = 5
+        elif span <= 60:
+            step = 10
+        else:
+            step = 20
+
+        tick_start = np.ceil(lat_min / step) * step
+        tick_end = np.floor(lat_max / step) * step
+        xticks = np.arange(tick_start, tick_end + 0.1, step)
+        ax.set_xticks(xticks)
 
     return cf
 
@@ -487,9 +532,15 @@ def _make_suptitle(plot_cfg, long_name: str, unit: str, start: str, end: str, ti
 
     if plot_cfg.difference:
         ref_str = "ERA5" if ref_type == "era5" else str(ref_model)
-        return f"{time_label} zonal mean {long_name} difference ({unit})\nModel - {ref_str} | {region_label}\n{start} to {end}"
+        if region_label != "Global":
+            return f"{time_label} zonal mean {long_name} difference ({unit})\nModel - {ref_str} | {region_label}\n{start} to {end}"
+        else:
+            return f"{time_label} zonal mean {long_name} difference ({unit})\nModel - {ref_str} \n{start} to {end}"
 
-    return f"{time_label} zonal mean {long_name} ({unit})\n{region_label}\n{start} to {end}"
+    if region_label != "Global":
+        return f"{time_label} zonal mean {long_name} ({unit})\n{region_label}\n{start} to {end}"
+    else:
+        return f"{time_label} zonal mean {long_name} ({unit})\n{start} to {end}"
 
 
 def _resolve_figsize(plot_cfg, n_panels: int) -> tuple[float, float]:
@@ -508,7 +559,7 @@ def _plot_single_panel_figure(da2d, title, long_name, unit, plot_cfg, start, end
     fig, ax = plt.subplots(figsize=figsize)
 
     cmap = _get_cmap(plot_cfg)
-    mappable = _plot_panel(ax, da2d, title, cmap, plot_cfg, vmin=vmin, vmax=vmax, levels=levels)
+    mappable = _plot_panel(ax, da2d, title, cmap, plot_cfg, vmin=vmin, vmax=vmax, levels=levels, region=region_label)
 
     fig.suptitle(_make_suptitle(plot_cfg, long_name, unit, start, end, time_selection, region_label), y=0.96)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
@@ -538,7 +589,7 @@ def _plot_panel_row(panels, long_name, unit, plot_cfg, start, end, time_selectio
 
     mappable = None
     for i, (ax, (title, da2d)) in enumerate(zip(axes_flat, panels)):
-        mappable = _plot_panel(ax, da2d, title, cmap, plot_cfg, vmin=vmin, vmax=vmax, levels=levels, show_ylabel=(i==0))
+        mappable = _plot_panel(ax, da2d, title, cmap, plot_cfg, vmin=vmin, vmax=vmax, levels=levels, show_ylabel=(i==0), region=region_label)
 
     fig.suptitle(_make_suptitle(plot_cfg, long_name, unit, start, end, time_selection, region_label), y=0.96, x=0.43)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
@@ -843,6 +894,8 @@ def run(cfg):
                             plot_cfg,
                             start,
                             end,
+                            time_selection,
+                            region_label,
                             vmin=vmin,
                             vmax=vmax,
                             levels=levels,
