@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=sc_ta_arctic
+#SBATCH --job-name=wind
 #SBATCH --time=05:00:00
 #SBATCH --partition=compute
 #SBATCH --account=bk1450
@@ -34,17 +34,17 @@ set -euo pipefail
 
 # ---- GLOBAL MEAN ----
 # full period
-# python -m evaluation.main \
-#   run_plots='["global_mean"]' \
-#   'out.overwrite=ask' \
-#   'plots.global_mean.freq="daily"' \
-#   'plots.global_mean.time.use_named=TSTP' \
-#   'plots.global_mean.variable=tas' \
-#   'plots.global_mean.plev=850' \
-#   'plots.global_mean.models=["forced_sst"]' \
-#   'plots.global_mean.show_era5_offset_trends=true' \
-#   'plots.global_mean.legend.inside_plot=true' \
-#   'plots.global_mean.special_outdir="thesis"'
+python -m evaluation.main \
+  run_plots='["global_mean"]' \
+  'out.overwrite=ask' \
+  'plots.global_mean.freq="monthly"' \
+  'plots.global_mean.time.use_named=TSTP' \
+  'plots.global_mean.variable=hus' \
+  'plots.global_mean.plev=850' \
+  'plots.global_mean.models=["forced_sst"]' \
+  'plots.global_mean.show_era5_offset_trends=false' \
+  'plots.global_mean.legend.inside_plot=true' \
+  'plots.global_mean.special_outdir="test"'
 
 # # TRP
 # python -m evaluation.main \
@@ -72,14 +72,14 @@ set -euo pipefail
 # python -m evaluation.main \
 #   run_plots='["anomalies"]' \
 #   out.overwrite=ask \
-#   plots.anomalies.variable=psl \
-#   plots.anomalies.plev=500 \
+#   plots.anomalies.variable=ua \
+#   plots.anomalies.plev=300 \
 #   plots.anomalies.models='["forced_sst"]' \
 #   plots.anomalies.time.use_named=null \
 #   plots.anomalies.mode=detrend \
 #   plots.anomalies.detrend.preserve_mean=false \
 #   plots.anomalies.legend.inside_plot=true \
-#   plots.anomalies.special_outdir="thesis"
+#   plots.anomalies.special_outdir="test"
 
 
 # ---- BIAS MAPS ----
@@ -88,7 +88,7 @@ set -euo pipefail
 # python -m evaluation.main \
 #   'run_plots=["bias_map"]' \
 #   'out.overwrite=true' \
-#   'plots.bias_map.variable=tas' \
+#   'plots.bias_map.variable=hus' \
 #   'plots.bias_map.plev=500' \
 #   'plots.bias_map.models=["archesweather"]' \
 #   'plots.bias_map.time.use_named=TRP' \
@@ -98,7 +98,7 @@ set -euo pipefail
 #   'plots.bias_map.range_source.percentile=99' \
 #   'plots.bias_map.range_source.csv_file1="outputs/range_summary/old_WORKING/range_summary_compact${.suffix}.csv"' \
 #   'plots.bias_map.range_source.csv_file2="outputs/range_summary/old_WORKING/model_minus_era5_summary_by_var_plev${.suffix}.csv"' \
-#   'plots.bias_map.special_outdir="tas"' 
+#   'plots.bias_map.special_outdir="test"' 
 
 # # TSTP
 # python -m evaluation.main \
@@ -167,24 +167,25 @@ set -euo pipefail
 #   'plots.diff_map_raw.range_source.percentile=99'
 
 # # full period
-# python -m evaluation.main \
-#   'run_plots=["diff_map_raw"]' \
-#   'out.overwrite=ask' \
-#   'plots.diff_map_raw.variable=uas' \
-#   'plots.diff_map_raw.plev=500' \
-#   'plots.diff_map_raw.models=["forced_sst"]' \
-#   'plots.diff_map_raw.time.use_named=null' \
-#   'plots.diff_map_raw.ticks_everyX_model=2' \
-#   'plots.diff_map_raw.keep_0_tick_diff=true' \
-#   'plots.diff_map_raw.global_centre=0' \
-#   'plots.diff_map_raw.cmap_model=PuOr' \
-#   'plots.diff_map_raw.detrend.enabled=false' \
-#   'plots.diff_map_raw.detrend.preserve_mean=false' \
-#   'plots.diff_map_raw.special_outdir="thesis"' \
-#   'plots.diff_map_raw.range_source.suffix="_sst0+AW"' \
-#   'plots.diff_map_raw.range_source.csv_file1="outputs/range_summary/range_summary_compact${.suffix}.csv"' \
-#   'plots.diff_map_raw.range_source.csv_file2="outputs/range_summary/model_minus_era5_summary_by_var_plev${.suffix}.csv"' \
-#   'plots.diff_map_raw.range_source.percentile=99'
+python -m evaluation.main \
+  'run_plots=["diff_map_raw"]' \
+  'out.overwrite=ask' \
+  'plots.diff_map_raw.variable=uas' \
+  'plots.diff_map_raw.plev=200' \
+  'plots.diff_map_raw.models=["forced_sst"]' \
+  'plots.diff_map_raw.time.use_named=null' \
+  'plots.diff_map_raw.season=full' \
+  'plots.diff_map_raw.ticks_everyX_model=2' \
+  'plots.diff_map_raw.keep_0_tick_diff=true' \
+  'plots.diff_map_raw.global_centre=0' \
+  'plots.diff_map_raw.cmap_model=PuOr' \
+  'plots.diff_map_raw.detrend.enabled=false' \
+  'plots.diff_map_raw.detrend.preserve_mean=false' \
+  'plots.diff_map_raw.special_outdir="thesis"' \
+  'plots.diff_map_raw.range_source.suffix="_sst0+AW"' \
+  'plots.diff_map_raw.range_source.csv_file1="outputs/range_summary/range_summary_compact${.suffix}.csv"' \
+  'plots.diff_map_raw.range_source.csv_file2="outputs/range_summary/model_minus_era5_summary_by_var_plev${.suffix}.csv"' \
+  'plots.diff_map_raw.range_source.percentile=99'
 
 # ---- SOI ----
 # runs within minutes for all models at once
@@ -216,38 +217,40 @@ set -euo pipefail
 
 # ---- INDIVIDUAL PLOTS ----
 # # full period
-# python -m evaluation.main \
-# run_plots='["individual_plots"]' \
-# out.overwrite=ask \
-# members='[member1]' \
-# plots.individual_plots.time.use_named=null \
-# plots.individual_plots.variable="psl" \
-# plots.individual_plots.plev="[500]" \
-# plots.individual_plots.models='["forced_sst"]' \
-# plots.individual_plots.map_era5=true \
-# plots.individual_plots.method=map \
-# plots.individual_plots.time_stat=raw \
-# plots.individual_plots.detrend.enabled=false \
-# plots.individual_plots.detrend.preserve_mean=false \
-# plots.individual_plots.difference=false \
-# plots.individual_plots.anomaly=false \
-# plots.individual_plots.baseline.start="1981-01-01" \
-# plots.individual_plots.baseline.end="2010-12-31" \
-# plots.individual_plots.special_outdir="thesis" \
-# plots.individual_plots.include_ensemble_mean_as_member=true \
-# plots.individual_plots.only_mean=false \
-# plots.individual_plots.location=global \
-# plots.individual_plots.individual.lat0=0 \
-# plots.individual_plots.individual.lon0=110 \
-# plots.individual_plots.individual.lat1=-25 \
-# plots.individual_plots.individual.lon1=240 \
-# plots.individual_plots.draw_soiBox=false \
-# plots.individual_plots.global_centre=180 \
-# plots.individual_plots.colourbar.tick_every=2 \
-# plots.individual_plots.colour_scheme=viridis \
-# plots.individual_plots.diff_colour=BrBG \
-# plots.individual_plots.range_source.suffix="_sst0+AW" \
-# plots.individual_plots.range_source.percentile=99 
+python -m evaluation.main \
+run_plots='["individual_plots"]' \
+out.overwrite=ask \
+members='[member1]' \
+plots.individual_plots.time.use_named=null \
+plots.individual_plots.season=["full"] \
+plots.individual_plots.variable="uas" \
+plots.individual_plots.plev="[200]" \
+plots.individual_plots.models='["forced_sst"]' \
+plots.individual_plots.map_era5=true \
+plots.individual_plots.method=map \
+plots.individual_plots.time_stat=raw \
+plots.individual_plots.detrend.enabled=false \
+plots.individual_plots.detrend.preserve_mean=false \
+plots.individual_plots.difference=true \
+plots.individual_plots.anomaly=false \
+plots.individual_plots.baseline.start="1981-01-01" \
+plots.individual_plots.baseline.end="2010-12-31" \
+plots.individual_plots.special_outdir="thesis" \
+plots.individual_plots.include_ensemble_mean_as_member=false \
+plots.individual_plots.only_mean=false \
+plots.individual_plots.location=global \
+plots.individual_plots.individual.lat0=0 \
+plots.individual_plots.individual.lon0=110 \
+plots.individual_plots.individual.lat1=-25 \
+plots.individual_plots.individual.lon1=240 \
+plots.individual_plots.draw_soiBox=false \
+plots.individual_plots.global_centre=0 \
+plots.individual_plots.central_latitude=45 \
+plots.individual_plots.colourbar.tick_every=2 \
+plots.individual_plots.colour_scheme=PuOr \
+plots.individual_plots.diff_colour=BrBG \
+plots.individual_plots.range_source.suffix="_sst0+AW" \
+plots.individual_plots.range_source.percentile=99 
 
 # python -m evaluation.main \
 # run_plots='["individual_plots"]' \
@@ -367,23 +370,26 @@ set -euo pipefail
 
 # ---- ZONAL MEAN ----
 # # full period
-# python -m evaluation.main \
-# run_plots='["zonal_mean"]' \
-# out.overwrite=ask \
-# plots.zonal_mean.variable="[zg]" \
-# plots.zonal_mean.models='["forced_sst"]' \
-# plots.zonal_mean.map_era5=true \
-# plots.zonal_mean.all_single_plots=false \
-# plots.zonal_mean.difference=false \
-# plots.zonal_mean.include_ensemble_mean_as_member=true \
-# plots.zonal_mean.only_mean=false \
-# plots.zonal_mean.cmap_absolute=bwr \
-# plots.zonal_mean.cmap_difference=BrBG \
-# plots.zonal_mean.colourbar.suffix="_sst0+AW" \
-# plots.zonal_mean.colourbar.percentile=99 \
-# plots.zonal_mean.colourbar.target_bins=20 \
-# plots.zonal_mean.colourbar.tick_every=2 \
-# plots.zonal_mean.special_outdir="thesis"
+python -m evaluation.main \
+run_plots='["zonal_mean"]' \
+out.overwrite=ask \
+plots.zonal_mean.variable="[ua]" \
+plots.zonal_mean.time.use_named=null \
+plots.zonal_mean.season=full \
+plots.zonal_mean.region=global \
+plots.zonal_mean.models='["forced_sst"]' \
+plots.zonal_mean.map_era5=true \
+plots.zonal_mean.all_single_plots=false \
+plots.zonal_mean.difference=false \
+plots.zonal_mean.include_ensemble_mean_as_member=true \
+plots.zonal_mean.only_mean=false \
+plots.zonal_mean.cmap_absolute=PuOr \
+plots.zonal_mean.cmap_difference=BrBG \
+plots.zonal_mean.colourbar.suffix="_sst0+AW" \
+plots.zonal_mean.colourbar.percentile=99 \
+plots.zonal_mean.colourbar.target_bins=20 \
+plots.zonal_mean.colourbar.tick_every=2 \
+plots.zonal_mean.special_outdir="test"
 
 # # TRP
 # python -m evaluation.main \
@@ -424,29 +430,43 @@ set -euo pipefail
 # plots.zonal_mean.special_outdir="ALL_99"
 
 # ---- WIND SPEED ----
-# python -m evaluation.main \
-# run_plots='["wind"]' \
-# out.overwrite=true \
-# plots.wind.plev='[surface, 5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70000, 85000, 92500, 100000]' \
-# plots.wind.models='["forced_sst"]' \
-# plots.wind.map_era5=true \
-# plots.wind.time.use_named=null \
-# plots.wind.difference=true \
-# plots.wind.include_ensemble_mean_as_member=true \
-# plots.wind.only_mean=true \
-# plots.wind.location=global \
-# plots.wind.colour_scheme=Blues \
-# plots.wind.colour_diff=BrBG \
-# plots.wind.special_outdir="thesis" \
-# plots.wind.range_source.suffix="_sst0+AW" \
-# plots.wind.range_source.percentile=99 
+python -m evaluation.main \
+run_plots='["wind"]' \
+out.overwrite=ask \
+members='[member1]' \
+plots.wind.freq='monthly' \
+plots.wind.plev='[300]' \
+plots.wind.models='["forced_sst"]' \
+plots.wind.background=speed \
+plots.wind.map_era5=true \
+plots.wind.time.use_named=null \
+plots.wind.time.start="2021-12-01" \
+plots.wind.time.end="2021-12-31" \
+plots.wind.season=full \
+plots.wind.difference=true \
+plots.wind.include_ensemble_mean_as_member=false \
+plots.wind.only_mean=false \
+plots.wind.location=global \
+plots.wind.global_centre=180 \
+plots.wind.central_latitude=60 \
+plots.wind.skip=13 \
+plots.wind.scale=700 \
+plots.wind.q_ref=30 \
+plots.wind.colour_speed=Blues \
+plots.wind.colour_diff=BrBG \
+plots.wind.special_outdir="thesis" \
+plots.wind.range_source.suffix="_sst0+AW" \
+plots.wind.range_source.percentile=99 
 
+# plots.wind.colourbar.manual=true \
+# plots.wind.colourbar.manual_vmin=0 \
+# plots.wind.colourbar.manual_vmax=60 
 
 # ---- SEASONAL CYCLE ----
 python -m evaluation.main \
   run_plots='["seasonal_cycle"]' \
   out.overwrite=true \
-  plots.seasonal_cycle.variable='["ta"]' \
+  plots.seasonal_cycle.variable='["uas"]' \
   plots.seasonal_cycle.plev='[50, 200, 500, 850]' \
   plots.seasonal_cycle.models='["forced_sst"]' \
   plots.seasonal_cycle.time.use_named=null \
@@ -455,7 +475,7 @@ python -m evaluation.main \
   plots.seasonal_cycle.include_ensemble_mean_as_member=true \
   plots.seasonal_cycle.only_mean=true \
   plots.seasonal_cycle.legend.inside_plot=false \
-  plots.seasonal_cycle.special_outdir='thesis'
+  plots.seasonal_cycle.special_outdir='test'
 
 #   python -m evaluation.main \
 #   run_plots='["seasonal_cycle"]' \

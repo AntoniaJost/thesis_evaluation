@@ -8,6 +8,7 @@ time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
+season: full # options: full (entire year), DJF, MAM, JJA, SON
 
 include_ensemble_mean_as_member: true
 

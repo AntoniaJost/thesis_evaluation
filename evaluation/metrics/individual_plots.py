@@ -13,6 +13,7 @@ import pandas as pd
 import xarray as xr
 import matplotlib as mpl
 from cartopy.util import add_cyclic_point
+from omegaconf import ListConfig
 
 from evaluation.general_functions import (
     get_range_from_csv,
@@ -26,6 +27,7 @@ from evaluation.general_functions import (
     plev_strings,
     should_compute_output,
     detrend_dataarray,
+    format_unit_for_plot
 )
 from evaluation.metrics.global_mean import(annual_weighted_mean, lin_reg, trend_decay)
 from evaluation.metrics.anomalies import(to_anomaly)
@@ -34,6 +36,13 @@ from evaluation.metrics.soi import (_lat_slice)
 
 
 POLAR_LOCATIONS = {"arctic", "antarctic"}
+SEASON_MONTHS = {
+    "full": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "DJF": [12, 1, 2],
+    "MAM": [3, 4, 5],
+    "JJA": [6, 7, 8],
+    "SON": [9, 10, 11],
+}
 
 # ---- CONFIG / VALIDATION HELPERS ----
 def _normalise_location(location) -> str | None:
@@ -47,10 +56,10 @@ def _normalise_location(location) -> str | None:
         loc = "arctic"
     if loc == "antartic":
         loc = "antarctic"
-    allowed = {None, "individual", "arctic", "antarctic"}
+    allowed = {None, "individual", "arctic", "antarctic", "ortho"}
     if loc not in allowed:
         raise ValueError(
-            "plots.individual_plots.location must be one of: null/global, individual, arctic, antarctic. "
+            "plots.individual_plots.location must be one of: null/global, individual, arctic, antarctic, ortho. "
             f"Got: {location}"
         )
     return loc
@@ -129,6 +138,84 @@ def _format_time_from_freq(ts, freq: str) -> str:
     raise ValueError(f"Unsupported frequence: {freq}. Expected 'monthly' or 'daily'.")
 
 
+def _selected_seasons(plot_cfg) -> list[str]:
+    season = getattr(plot_cfg, "season", "full")
+    if season is None:
+        return ["full"]
+    if isinstance(season, (list, tuple, ListConfig)):
+        seasons = [str(s).strip() for s in season]
+    else:
+        seasons = [str(season).strip()]
+
+    for s in seasons:
+        if s not in SEASON_MONTHS:
+            raise ValueError(
+                f"plots.individual_plots.season must be one of {list(SEASON_MONTHS.keys())} "
+                f"or a list of them. Got: {s}"
+            )
+    return seasons
+
+
+def _season_year_index(time_index: pd.DatetimeIndex, season: str) -> np.ndarray:
+    """
+    for DJF, December belongs to the following year
+    Example: Dec 2000, Jan 2001, Feb 2001 -> season year 2001
+    """
+    if season == "DJF":
+        return np.where(time_index.month == 12, time_index.year + 1, time_index.year)
+    return time_index.year
+
+
+def _season_time_subset(da: xr.DataArray, season: str) -> xr.DataArray:
+    if season == "full":
+        return da
+    months = SEASON_MONTHS[season]
+    return da.sel(time=da.time.dt.month.isin(months))
+
+
+def _seasonal_weighted_mean(da: xr.DataArray, season: str, freq: str) -> xr.DataArray:
+    """
+    build one value per season-year
+    - full: same as annual_weighted_mean
+    - DJF/MAM/JJA/SON: seasonal mean per season-year
+    """
+    if season == "full":
+        return annual_weighted_mean(da)
+
+    da = _season_time_subset(da, season)
+    if da.sizes.get("time", 0) == 0:
+        raise ValueError(f"No timesteps remain after subsetting to season '{season}'.")
+
+    time_index = pd.DatetimeIndex(pd.to_datetime(da.time.values))
+    season_year = xr.DataArray(
+        _season_year_index(time_index, season),
+        coords={"time": da.time},
+        dims="time",
+        name="season_year",
+    )
+
+    if freq == "monthly":
+        weights = da.time.dt.days_in_month
+        num = (da * weights).groupby(season_year).sum("time")
+        den = weights.groupby(season_year).sum("time")
+        out = num / den
+    elif freq == "daily":
+        out = da.groupby(season_year).mean("time")
+    else:
+        raise ValueError(f"Unsupported frequency: {freq}")
+
+    season_year_vals = out["season_year"].values
+    out = out.rename({"season_year": "time"})
+    out = out.assign_coords(
+        time=pd.to_datetime([f"{int(y)}-01-01" for y in season_year_vals])
+    )
+    return out
+
+
+def _season_label(season: str) -> str:
+    return "Full Year" if season == "full" else season
+
+
 def _selection_bounds_for_freq(start: str, end: str, freq: str) -> tuple[str, str]:
     """
     converts requested dates to selection bounds matching the data frequency
@@ -159,7 +246,7 @@ def _nearest_time_str(da: xr.DataArray, requested: str, freq: str) -> str:
     return _format_time_from_freq(da.time.values[idx], freq)
 
 
-def _time_label(start: str, end: str, method: str, da: xr.DataArray, freq: str, plot_cfg) -> str:
+def _time_label(start: str, end: str, method: str, da: xr.DataArray, freq: str, plot_cfg, season: str) -> str:
     """
     constructs a time label for the plot titles
     - for "annual_mean" or "trend": show only yyyy
@@ -168,17 +255,18 @@ def _time_label(start: str, end: str, method: str, da: xr.DataArray, freq: str, 
     - for maps over multiple timesteps: append "(time mean)"
     """
     stat = _time_stat(plot_cfg)
+    season = _season_label(season)
     if stat in {"annual_mean", "trend"}:
         start_y = pd.Timestamp(start).year
         end_y = pd.Timestamp(end).year
-        return f"{start_y} to {end_y}"
+        return f"{season} | {start_y} to {end_y}"
     if pd.Timestamp(start) == pd.Timestamp(end):
-        return _nearest_time_str(da, start, freq)
+        return f"{season} | {_nearest_time_str(da, start, freq)}"
     start_str = _format_time_from_freq(start, freq)
     end_str = _format_time_from_freq(end, freq)
     if method == "map":
-        return f"{start_str} to {end_str} (time mean)"
-    return f"{start_str} to {end_str}"
+        return f"{season} | {start_str} to {end_str} (time mean)"
+    return f"{season} | {start_str} to {end_str}"
 
 
 # ---- GENERIC HELPERS ----
@@ -271,13 +359,14 @@ def _subset_for_location(da: xr.DataArray, plot_cfg) -> xr.DataArray:
     creates a subset for a given location
     supported modes:
         - None/global -> returns full field
+        - "ortho" -> returns full field (projection handles visible hemisphere)
         - "individual" -> selects user-defined lat/lon bounding box
         - "arctic" -> selects latitudes from min_latitude to 90°
         - "antarctic" -> selects latitude from -90° to max_latitude
     """
     location = _normalise_location(plot_cfg.location) # converts config value to accepted location mode
 
-    if location is None: # global: no spatial subsetting
+    if location is None or location == "ortho": # global/orthographic: no spatial subsetting
         return da
 
     if location == "individual":
@@ -351,9 +440,9 @@ def _maybe_anomaly(da: xr.DataArray, plot_cfg) -> xr.DataArray:
     return da_anom
 
 
-def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str) -> xr.DataArray:
+def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str, season: str) -> xr.DataArray:
     """
-    prepares the data array for plotting depending on the configured time statistic (raw, annual_mean, trend), detrending, anomaly, and plotting method (map, timeseries)
+    prepares the data array for plotting depending on the configured time statistic (raw, annual_mean, trend), season, detrending, anomaly, and plotting method (map, timeseries)
     rules for detrending:
         - raw:
             * timeseries: detrend after area mean
@@ -363,21 +452,23 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
             * map: anuual mean at each grid point -> detrend annual series per grid point -> mean over time
     """
     stat = _time_stat(plot_cfg) # get "raw, annual_mean, or trend"
+    freq = str(plot_cfg.freq).strip().lower()
     da_loc = _subset_for_location(da, plot_cfg) # create subset if requested
     # if plot_cfg.anomaly:
     #     da_loc, _ = to_anomaly(da_loc, plot_cfg.baseline.start, plot_cfg.baseline.end) 
 
     if stat == "raw":
+        da_season = _season_time_subset(da_loc, season)
         if method == "map":
             # map uses the temporal mean of the selected period
-            if da_loc.sizes.get("time", 0) == 0:
+            if da_season.sizes.get("time", 0) == 0:
                 raise ValueError("No timesteps remain after time selection.")
-            da_plot = _maybe_detrend(da_loc, plot_cfg, start, end)
+            da_plot = _maybe_detrend(da_season, plot_cfg, start, end)
             da_plot = _maybe_anomaly(da_plot, plot_cfg)
             return da_plot.mean(dim="time")
         if method == "timeseries":
             # timeseries uses the spatial mean
-            da_series = _area_mean(da_loc)
+            da_series = _area_mean(da_season)
             da_series = _maybe_detrend(da_series, plot_cfg, start, end)
             da_series = _maybe_anomaly(da_series, plot_cfg)
             return da_series
@@ -385,7 +476,7 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
     elif stat == "annual_mean":
         if method == "map":
             # compute annual means first, then average those years spatially
-            da_ann = annual_weighted_mean(da_loc)
+            da_ann = _seasonal_weighted_mean(da_loc, season, freq)
             if da_ann.sizes.get("time", 0) == 0:
                 raise ValueError("No annual timesteps remain after aggregation.")
             da_ann = _maybe_detrend(da_ann, plot_cfg, start, end)
@@ -394,7 +485,7 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
 
         if method == "timeseries":
             # compute spatial mean first, then annual mean timeseries
-            da_series = annual_weighted_mean(_area_mean(da_loc))
+            da_series = _seasonal_weighted_mean(_area_mean(da_loc), season, freq)
             da_series = _maybe_detrend(da_series, plot_cfg, start, end)
             da_series = _maybe_anomaly(da_series, plot_cfg)
             return da_series
@@ -402,17 +493,17 @@ def _prepare_field(da: xr.DataArray, plot_cfg, method: str, start: str, end: str
     elif stat == "trend":
         if method == "map":
             # compute per-gridpoint linear trend (converted to decadal trend)
-            if da_loc.sizes.get("time", 0) < 2:
+            da_trend = _seasonal_weighted_mean(da_loc, season, freq)
+            if da_trend.sizes.get("time", 0) < 2:
                 raise ValueError(f"Need at least 2 timesteps to compute a trend map."
                                  "\n Frequent error: check if you are trying to access data for free_run_prediction that is before its start 2015.")
-            da_trend = da_loc
             da_trend = _maybe_detrend(da_trend, plot_cfg, start, end)
             da_trend = _maybe_anomaly(da_trend, plot_cfg)
             return compute_slope_per_gridpoint(da_trend) * 10.0
 
         if method == "timeseries":
             # same as for annual_mean + timeseries; the decadal trend line is computed and added later during plotting
-            da_series = annual_weighted_mean(_area_mean(da_loc))
+            da_series = _seasonal_weighted_mean(_area_mean(da_loc), season, freq)
             da_series = _maybe_detrend(da_series, plot_cfg, start, end)
             da_series = _maybe_anomaly(da_series, plot_cfg)
             return da_series
@@ -677,11 +768,14 @@ def _projection_and_extent(plot_cfg):
             if lon0 > lon1:
                 lon_max += 360.0
             extent = [lon_min, lon_max, min(float(plot_cfg.individual.lat0), float(plot_cfg.individual.lat1)), max(float(plot_cfg.individual.lat0), float(plot_cfg.individual.lat1))]
-        return ccrs.PlateCarree(central_longitude=plot_cfg.global_centre), extent # plateCarree for standard map of just a section
+        return ccrs.PlateCarree(), extent # plateCarree for standard map of just a section
     if location == "arctic":
         return ccrs.NorthPolarStereo(), [-180, 180, float(plot_cfg.polar.min_latitude), 90] # arctic projection
     if location == "antarctic":
         return ccrs.SouthPolarStereo(), [-180, 180, -90, float(plot_cfg.polar.max_latitude)] # antarctic projection
+    if location == "ortho":
+        central_lat = float(getattr(plot_cfg, "central_latitude", 0.0))
+        return ccrs.Orthographic(central_longitude=centre, central_latitude=central_lat), None
     return ccrs.Robinson(central_longitude=centre), None
 
 
@@ -699,7 +793,7 @@ def _resolve_figsize(plot_cfg, method: str):
         return tuple(plot_cfg.figsize)
     if method == "map":
         loc = _normalise_location(plot_cfg.location)
-        if loc in POLAR_LOCATIONS:
+        if loc in POLAR_LOCATIONS or loc == "ortho":
             return (8, 8)
         if loc is None:  # global
             return (9, 5)
@@ -723,6 +817,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
     if extent is not None:
         ax.set_extent(extent, crs=ccrs.PlateCarree()) # restrict plot to configured extent if needed
 
+    # draw_labels = location in {None, "individual"}
     ax.gridlines(draw_labels=True, linewidth=0.5, color="black", alpha=0.35, linestyle="--")
 
     if plot_cfg.draw_soiBox:
@@ -736,7 +831,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
         ax.text(130, -22, "Darwin", color="blue", transform=ccrs.PlateCarree())
 
     # for global and polar maps only: add cyclic point to avoid seam at 0/360°
-    if location is None or location in POLAR_LOCATIONS:
+    if location is None or location in POLAR_LOCATIONS or location == "ortho":
         data_cyc, lon_cyc = add_cyclic_point(da.values, coord=da["lon"].values)
         cf = ax.contourf(
             lon_cyc,
@@ -936,13 +1031,14 @@ def _format_title(plot_cfg, method: str, var: str, long_name: str, model_name: s
 
 
 def _output_filename(method: str, var: str, plev_tag: str, model_name: str, member: str, 
-                     start: str, end: str, plot_cfg) -> str:
+                     start: str, end: str, plot_cfg, season: str) -> str:
     # creates detailed filenames that contain all relevant information
     if model_name == "era5":
         model_tag = "era5"
     else:
         model_tag = model_abbrev(model_name)
     stat = _time_stat(plot_cfg)
+    season_tag = season
     if stat in {"annual_mean", "trend"}:
         start_tag = str(pd.Timestamp(start).year)
         end_tag = str(pd.Timestamp(end).year)
@@ -974,7 +1070,7 @@ def _output_filename(method: str, var: str, plev_tag: str, model_name: str, memb
         tags.append("detrended-presvMeanFalse")
     stat_tag = f"_{'_'.join(tags)}" if tags else ""
     member = f"_{member}" if member else ""
-    return f"{method}_{var}{plev_tag}_{model_tag}{member}_{loc_tag}{diff_tag}{anom_tag}_{start_tag}-{end_tag}{stat_tag}.png"
+    return f"{method}_{var}{plev_tag}_{model_tag}{member}_{loc_tag}_{season_tag}{diff_tag}{anom_tag}_{start_tag}-{end_tag}{stat_tag}.png"
 
 
 # ---- ENSEMBLE / MEMBER HANDLING HELPER ----
@@ -1030,12 +1126,13 @@ def run(cfg):
         )
     figsize = _resolve_figsize(plot_cfg, method)
     add_dir = str(plot_cfg.special_outdir) if plot_cfg.special_outdir else ""
+    seasons = _selected_seasons(plot_cfg)
 
     # 2. iterate over variables & pressure levels
     for item in iter_vars_and_plevs(cfg, plot_cfg):
         var = item["var"]
         long_name = item["long_name"]
-        unit = item["unit"]
+        unit = format_unit_for_plot(item["unit"])
         start = item["start"]
         end = item["end"]
         _validate_time_order(start, end)
@@ -1045,96 +1142,179 @@ def run(cfg):
 
         for plev in item["plevs"]:
             plev_title, plev_tag = plev_strings(plev)
-            # 3. load and prepare era5 data
-            era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
-            era5, unit_here = conversion_rules(var, era5, cfg, "era5", unit)
-            era5_prepared = _prepare_field(era5, plot_cfg, method, start_sel, end_sel)
-            time_label = _time_label(start, end, method, era5, plot_cfg.freq, plot_cfg)
-            single_time = pd.Timestamp(start) == pd.Timestamp(end)
+            for season in seasons:
+                # 3. load and prepare era5 data
+                era5 = open_era5_da(cfg, var=var, start=start_sel, end=end_sel, plev=plev)
+                era5, unit_here = conversion_rules(var, era5, cfg, "era5", unit)
+                era5_prepared = _prepare_field(era5, plot_cfg, method, start_sel, end_sel, season)
+                time_label = _time_label(start, end, method, era5, plot_cfg.freq, plot_cfg, season)
+                single_time = pd.Timestamp(start) == pd.Timestamp(end)
 
-            # 4. model plotting part
-            for model_name in _selected_models(plot_cfg):
-                model_cfg = cfg.datasets.models[model_name]
-                proper_model_name = getattr(model_cfg, "proper_name", model_name)
-                # 4a. open and prepare members of models
-                member_to_da = {}
-                for member in cfg.members:
-                    da_model = open_model_da(
-                        model_cfg=model_cfg,
-                        cfg=cfg,
-                        member=member,
-                        var=var,
-                        modelname=model_cfg.modelname,
-                        freq=plot_cfg.freq,
-                        start=start_sel,
-                        end=end_sel,
-                        grid=plot_cfg.grid,
-                        plev=plev,
-                    )
-                    da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
-                    prepared = _prepare_field(da_model, plot_cfg, method, start_sel, end_sel)
-                    if plot_cfg.difference:
-                        prepared = _subtract_with_time_alignment(prepared, era5_prepared, plot_cfg)
-                    member_to_da[member] = prepared
-
-                member_to_plot = _prepare_member_mapping(cfg, plot_cfg, member_to_da)
-
-                outdir = os.path.join(
-                    hydra.utils.get_original_cwd(),
-                    cfg.out.dir,
-                    "individual_plots",
-                    method,
-                    var,
-                    add_dir,
-                )
-                os.makedirs(outdir, exist_ok=True)
-                # 4b. TIMESERIES plotting
-                if method == "timeseries":
-                    era5_series = era5_prepared
-                    for member, series in member_to_plot.items():
-                        if "time" not in series.dims:
-                            raise ValueError(
-                                f"Expected a time dimension for timeseries plotting, got {series.dims} for {var}."
-                            )
-                        fname = _output_filename(method, var, plev_tag, model_name, member, start, end, plot_cfg)
-                        outfile = os.path.join(outdir, fname)
-                        if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
-                            continue
-
-                        fig, ax = plt.subplots(figsize=figsize)
-                        _plot_timeseries(ax, era5_series, series, plot_cfg, model_name, proper_model_name, member, unit_here)
-                        title = _format_title(
-                            plot_cfg,
-                            method,
-                            var,
-                            long_name,
-                            model_name,
-                            proper_model_name,
-                            member,
-                            plev,
-                            plev_title,
-                            start,
-                            end,
-                            time_label,
+                # 4. model plotting part
+                for model_name in _selected_models(plot_cfg):
+                    model_cfg = cfg.datasets.models[model_name]
+                    proper_model_name = getattr(model_cfg, "proper_name", model_name)
+                    # 4a. open and prepare members of models
+                    member_to_da = {}
+                    for member in cfg.members:
+                        da_model = open_model_da(
+                            model_cfg=model_cfg,
+                            cfg=cfg,
+                            member=member,
+                            var=var,
+                            modelname=model_cfg.modelname,
+                            freq=plot_cfg.freq,
+                            start=start_sel,
+                            end=end_sel,
+                            grid=plot_cfg.grid,
+                            plev=plev,
                         )
-                        ax.set_title(title)
-                        ylabel = str(plot_cfg.ylabel) if plot_cfg.ylabel is not None else unit_here
-                        if plot_cfg.difference and ylabel == unit_here:
-                            ylabel = f"Difference ({unit_here})"
-                        elif plot_cfg.anomaly and ylabel == unit_here:
-                            ylabel = f"Anomaly in {long_name} ({unit_here})"
-                        elif ylabel == unit_here:
-                            ylabel = f"{long_name} ({unit_here})"
-                        ax.set_ylabel(ylabel)
+                        da_model, _ = conversion_rules(var, da_model, cfg, "model", unit_here)
+                        prepared = _prepare_field(da_model, plot_cfg, method, start_sel, end_sel, season)
+                        if plot_cfg.difference:
+                            prepared = _subtract_with_time_alignment(prepared, era5_prepared, plot_cfg)
+                        member_to_da[member] = prepared
 
-                        if cfg.out.savefig:
-                            fig.savefig(outfile, dpi=cfg.out.dpi, bbox_inches="tight")
-                            plt.close(fig)
+                    member_to_plot = _prepare_member_mapping(cfg, plot_cfg, member_to_da)
+
+                    outdir = os.path.join(
+                        hydra.utils.get_original_cwd(),
+                        cfg.out.dir,
+                        "individual_plots",
+                        method,
+                        var,
+                        add_dir,
+                    )
+                    os.makedirs(outdir, exist_ok=True)
+                    # 4b. TIMESERIES plotting
+                    if method == "timeseries":
+                        era5_series = era5_prepared
+                        for member, series in member_to_plot.items():
+                            if "time" not in series.dims:
+                                raise ValueError(
+                                    f"Expected a time dimension for timeseries plotting, got {series.dims} for {var}."
+                                )
+                            fname = _output_filename(method, var, plev_tag, model_name, member, start, end, plot_cfg, season)
+                            outfile = os.path.join(outdir, fname)
+                            if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
+                                continue
+
+                            fig, ax = plt.subplots(figsize=figsize)
+                            _plot_timeseries(ax, era5_series, series, plot_cfg, model_name, proper_model_name, member, unit_here)
+                            title = _format_title(
+                                plot_cfg,
+                                method,
+                                var,
+                                long_name,
+                                model_name,
+                                proper_model_name,
+                                member,
+                                plev,
+                                plev_title,
+                                start,
+                                end,
+                                time_label,
+                            )
+                            ax.set_title(title)
+                            ylabel = str(plot_cfg.ylabel) if plot_cfg.ylabel is not None else unit_here
+                            if plot_cfg.difference and ylabel == unit_here:
+                                ylabel = f"Difference ({unit_here})"
+                            elif plot_cfg.anomaly and ylabel == unit_here:
+                                ylabel = f"Anomaly in {long_name} ({unit_here})"
+                            elif ylabel == unit_here:
+                                ylabel = f"{long_name} ({unit_here})"
+                            ax.set_ylabel(ylabel)
+
+                            if cfg.out.savefig:
+                                fig.savefig(outfile, dpi=cfg.out.dpi, bbox_inches="tight")
+                                plt.close(fig)
+                            else:
+                                plt.show()
+                    # 4c. MAP plotting
+                    else:
+                        arrays = list(member_to_plot.values())
+                        if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
+                            vmin = float(plot_cfg.colourbar.manual_vmin)
+                            vmax = float(plot_cfg.colourbar.manual_vmax)
                         else:
-                            plt.show()
-                # 4c. MAP plotting
-                else:
-                    arrays = list(member_to_plot.values())
+                            vmin, vmax = _get_map_bounds(
+                                cfg,
+                                plot_cfg,
+                                arrays,
+                                var,
+                                plev,
+                                difference=bool(plot_cfg.difference),
+                                anomaly=bool(plot_cfg.anomaly),
+                                single_time=single_time,
+                            )
+                        print(f"diff: {bool(plot_cfg.difference)}, anomaly: {bool(plot_cfg.anomaly)}, vmin: {vmin}, vmax: {vmax}")
+                        if plot_cfg.colourbar.use_custom_bins:
+                            levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
+                        else:
+                            levels = np.linspace(vmin, vmax, 21)
+                            ticks = None
+                        projection, _ = _projection_and_extent(plot_cfg)
+
+                        for member, map_da in member_to_plot.items():
+                            fname = _output_filename(method, var, plev_tag, model_name, member, start, end, plot_cfg, season)
+                            outfile = os.path.join(outdir, fname)
+                            if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
+                                continue
+
+                            fig, ax = plt.subplots(
+                                figsize=figsize,
+                                subplot_kw={"projection": projection},
+                            )
+                            fig.subplots_adjust(top=0.9, bottom=0.12)
+                            cf = _plot_single_map(ax, map_da, "", cfg, plot_cfg, vmin=vmin, vmax=vmax, levels=levels)
+                            title = _format_title(
+                                plot_cfg,
+                                method,
+                                var,
+                                long_name,
+                                model_name,
+                                proper_model_name,
+                                member,
+                                plev,
+                                plev_title,
+                                start,
+                                end,
+                                time_label,
+                            )
+                            ax.set_title(title, pad=13)
+                            cbar = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.1, shrink=0.9)
+                            if ticks is not None:
+                                cbar.set_ticks(ticks)
+                            cbar_label = unit_here
+                            if _time_stat(plot_cfg) == "trend":
+                                if plot_cfg.difference:
+                                    cbar_label = f"Model - ERA5 ({unit_here}/decade)"
+                                else:
+                                    cbar_label = f"{long_name} ({unit_here}/decade)"
+                            elif plot_cfg.difference:
+                                cbar_label = f"Model - ERA5 ({unit_here})"
+                            elif plot_cfg.anomaly:
+                                cbar_label = f"Anomaly ({unit_here})"
+                            else:
+                                cbar_label = f"{long_name} ({unit_here})"
+                            cbar.set_label(cbar_label)
+
+                            if cfg.out.savefig:
+                                fig.savefig(outfile, dpi=cfg.out.dpi, bbox_inches="tight")
+                                plt.close(fig)
+                            else:
+                                plt.show()
+                # 5. optional ERA5 map
+                if method == "map" and plot_cfg.map_era5 and not plot_cfg.difference:
+                    outdir = os.path.join(
+                        hydra.utils.get_original_cwd(),
+                        cfg.out.dir,
+                        "individual_plots",
+                        method,
+                        var,
+                        add_dir,
+                    )
+                    os.makedirs(outdir, exist_ok=True)
                     if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
                         vmin = float(plot_cfg.colourbar.manual_vmin)
                         vmax = float(plot_cfg.colourbar.manual_vmax)
@@ -1142,41 +1322,42 @@ def run(cfg):
                         vmin, vmax = _get_map_bounds(
                             cfg,
                             plot_cfg,
-                            arrays,
+                            [era5_prepared],
                             var,
                             plev,
-                            difference=bool(plot_cfg.difference),
+                            difference=False,
                             anomaly=bool(plot_cfg.anomaly),
                             single_time=single_time,
                         )
-                    print(f"diff: {bool(plot_cfg.difference)}, anomaly: {bool(plot_cfg.anomaly)}, vmin: {vmin}, vmax: {vmax}")
+
                     if plot_cfg.colourbar.use_custom_bins:
                         levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
                     else:
                         levels = np.linspace(vmin, vmax, 21)
                         ticks = None
+
                     projection, _ = _projection_and_extent(plot_cfg)
 
-                    for member, map_da in member_to_plot.items():
-                        fname = _output_filename(method, var, plev_tag, model_name, member, start, end, plot_cfg)
-                        outfile = os.path.join(outdir, fname)
-                        if cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask")):
-                            continue
+                    fname = _output_filename(method, var, plev_tag, "era5", "", start, end, plot_cfg, season)
+                    outfile = os.path.join(outdir, fname)
 
+                    if not (cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask"))):
                         fig, ax = plt.subplots(
                             figsize=figsize,
                             subplot_kw={"projection": projection},
                         )
                         fig.subplots_adjust(top=0.9, bottom=0.12)
-                        cf = _plot_single_map(ax, map_da, "", cfg, plot_cfg, vmin=vmin, vmax=vmax, levels=levels)
+
+                        cf = _plot_single_map(ax, era5_prepared, "", cfg, plot_cfg, vmin=vmin, vmax=vmax, levels=levels)
+
                         title = _format_title(
                             plot_cfg,
                             method,
                             var,
                             long_name,
-                            model_name,
-                            proper_model_name,
-                            member,
+                            "era5",
+                            "ERA5",
+                            "",
                             plev,
                             plev_title,
                             start,
@@ -1184,17 +1365,13 @@ def run(cfg):
                             time_label,
                         )
                         ax.set_title(title, pad=13)
+
                         cbar = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.1, shrink=0.9)
                         if ticks is not None:
                             cbar.set_ticks(ticks)
-                        cbar_label = unit_here
+
                         if _time_stat(plot_cfg) == "trend":
-                            if plot_cfg.difference:
-                                cbar_label = f"Model - ERA5 ({unit_here}/decade)"
-                            else:
-                                cbar_label = f"{long_name} ({unit_here}/decade)"
-                        elif plot_cfg.difference:
-                            cbar_label = f"Model - ERA5 ({unit_here})"
+                            cbar_label = f"{long_name} ({unit_here}/decade)"
                         elif plot_cfg.anomaly:
                             cbar_label = f"Anomaly ({unit_here})"
                         else:
@@ -1206,82 +1383,3 @@ def run(cfg):
                             plt.close(fig)
                         else:
                             plt.show()
-            # 5. optional ERA5 map
-            if method == "map" and plot_cfg.map_era5 and not plot_cfg.difference:
-                outdir = os.path.join(
-                    hydra.utils.get_original_cwd(),
-                    cfg.out.dir,
-                    "individual_plots",
-                    method,
-                    var,
-                    add_dir,
-                )
-                os.makedirs(outdir, exist_ok=True)
-                if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
-                    vmin = float(plot_cfg.colourbar.manual_vmin)
-                    vmax = float(plot_cfg.colourbar.manual_vmax)
-                else:
-                    vmin, vmax = _get_map_bounds(
-                        cfg,
-                        plot_cfg,
-                        [era5_prepared],
-                        var,
-                        plev,
-                        difference=False,
-                        anomaly=bool(plot_cfg.anomaly),
-                        single_time=single_time,
-                    )
-
-                if plot_cfg.colourbar.use_custom_bins:
-                    levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
-                else:
-                    levels = np.linspace(vmin, vmax, 21)
-                    ticks = None
-
-                projection, _ = _projection_and_extent(plot_cfg)
-
-                fname = _output_filename(method, var, plev_tag, "era5", "", start, end, plot_cfg)
-                outfile = os.path.join(outdir, fname)
-
-                if not (cfg.out.savefig and not should_compute_output(outfile, getattr(cfg.out, "overwrite", "ask"))):
-                    fig, ax = plt.subplots(
-                        figsize=figsize,
-                        subplot_kw={"projection": projection},
-                    )
-                    fig.subplots_adjust(top=0.9, bottom=0.12)
-
-                    cf = _plot_single_map(ax, era5_prepared, "", cfg, plot_cfg, vmin=vmin, vmax=vmax, levels=levels)
-
-                    title = _format_title(
-                        plot_cfg,
-                        method,
-                        var,
-                        long_name,
-                        "era5",
-                        "ERA5",
-                        "",
-                        plev,
-                        plev_title,
-                        start,
-                        end,
-                        time_label,
-                    )
-                    ax.set_title(title, pad=13)
-
-                    cbar = fig.colorbar(cf, ax=ax, orientation="horizontal", pad=0.1, shrink=0.9)
-                    if ticks is not None:
-                        cbar.set_ticks(ticks)
-
-                    if _time_stat(plot_cfg) == "trend":
-                        cbar_label = f"{long_name} ({unit_here}/decade)"
-                    elif plot_cfg.anomaly:
-                        cbar_label = f"Anomaly ({unit_here})"
-                    else:
-                        cbar_label = f"{long_name} ({unit_here})"
-                    cbar.set_label(cbar_label)
-
-                    if cfg.out.savefig:
-                        fig.savefig(outfile, dpi=cfg.out.dpi, bbox_inches="tight")
-                        plt.close(fig)
-                    else:
-                        plt.show()

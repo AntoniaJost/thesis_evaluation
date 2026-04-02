@@ -12,6 +12,16 @@ time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
+season: full  # options: full, DJF, MAM, JJA, SON, jan, feb, ..., dec, or list of them
+region: global # options: global, northern, southern, tropics, arctic, antarctic, individual
+individual: # only relevant if region=individual
+  lat0: 20
+  lon0: 120
+  lat1: 60
+  lon1: 240
+polar: # only relevant if region=(ant-)arctic
+  min_latitude: 60.0
+  max_latitude: -60.0
 
 difference: false
 reference:
@@ -21,12 +31,12 @@ include_ensemble_mean_as_member: true
 only_mean: false # if this is set to true, include_ensemble_mean_as_member also has to be true
 
 # plot
-figsize: null # options null (recommended) or e.g. [12, 8]
+figsize: null # options: null (recommended) or e.g. [12, 8]
 cmap_absolute: bwr
 cmap_difference: BrBG
 invert_yaxis: true
 ylog: true
-title: null # string; options to be included: {long_name}, {unit}, {start}, {end}, {difference}, {reference_type}, {reference_model}
+title: null # string; options to be included: {long_name}, {unit}, {start}, {end}, {difference}, {reference_type}, {reference_model}, {season}, {region}
 colourbar:
   use_csv_ranges: true
   suffix: _ALL

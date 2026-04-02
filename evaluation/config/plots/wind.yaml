@@ -2,11 +2,13 @@ plev: [surface, 5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000, 60000, 70
 freq: monthly # options: monthly or daily (for daily: ERA5 ref data is currently still missing)
 grid: gn # only supports gn
 models: ["forced_sst"] # options: ["free_run_control", "free_run_prediction", "forced_sst", "forced_sst_2k", "forced_sst_4k", "archesweather"]
+background: speed # options: speed (sqrt(ua(s)+va(s))^2) or pressure (psl)
 map_era5: true # only works for method map; will create same maps for era5; needs at least one model set in models (bug to fix later)
 time:
   use_named: null # options: TRP (training period) or TSTP (testing period) or null and set manually
   start: "1979-01-01"
   end: "2024-12-31"
+season: full # options: full (entire year), DJF, MAM, JJA, SON
 
 # calc basics
 difference: false # will calc and plot the difference Model - ERA5
@@ -14,9 +16,12 @@ include_ensemble_mean_as_member: true
 only_mean: false # if this is set to true, include_ensemble_mean_as_member also has to be true
 
 # map basics
-skip: 10 # arrow subsampling
-location: global # options: arctic, antarctic, individual, global (=null)
-global_centre: 0 # only relevant if location=global, longitude that is in centre (0≈Africa, 180≈pacific ocean); not implemented yet
+skip: 15 # arrow subsampling
+scale: 200 # scaling of the arrow length
+q_ref: 10 # arrow size in legend (10 = arrow will have length 10 m/s)
+location: global # options: arctic, antarctic, individual, global (=null), ortho (satellite view)
+global_centre: 0 # only relevant if location=global or ortho, longitude that is in centre (0≈Africa, 180≈pacific ocean)
+central_latitude: 35.0
 individual: # will only become relevant if location=individual
   # UPPER LEFT corner of bounding box
   lat0: 38.34 # [90, -90]
@@ -38,7 +43,8 @@ colourbar:
   manual_vmin: 0 # only relevant if manual=true
   manual_vmax: 12
 
-colour_scheme: Blues # case-sensitive!
+colour_speed: Blues # case-sensitive!
+colour_pressure: viridis
 colour_diff: BrBG
 figsize: null # if null then automatically [9,5] for global map, [8,8] for (ant-)arctic map
 
@@ -48,4 +54,6 @@ range_source:
   suffix: "_sst0+AW" # options: _ALL, _FRc+FR15, _sst0+AW, _sst0+AW+FRc+FR15, _sst0+AW+sst2+sst4, _sst2+sst4
   csv_file1: "outputs/range_wind/wind_speed_bounds${.suffix}.csv"
   csv_file2: "outputs/range_wind/wind_speed_diff_bounds${.suffix}.csv"
+  csv_regular1: "outputs/range_summary/range_summary_compact${.suffix}.csv"
+  csv_regular2: "outputs/range_summary/model_minus_era5_summary_by_var_plev${.suffix}.csv"
   percentile: 99 # options: 99, 95, raw; impacts the selection of the min/max values of the colourbar (e.g. 95 uses the 5th and 95th percentile and therefore includes less extremes than option 99 or even less then option "raw")

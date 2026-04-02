@@ -20,6 +20,7 @@ from evaluation.general_functions import (
     open_single_match,
     select_plev_if_needed,
     normalise_list,
+    format_unit_for_plot
 )
 from evaluation.metrics.individual_plots import (
     _area_mean,
@@ -242,7 +243,7 @@ def run(cfg):
     for item in iter_vars_and_plevs(cfg, plot_cfg):
         var = item["var"]
         long_name = item["long_name"]
-        unit = item["unit"]
+        unit = format_unit_for_plot(item["unit"])
         start = item["start"]
         end = item["end"]
 
