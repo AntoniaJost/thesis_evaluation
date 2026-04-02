@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import numpy as np
-# import xarray as xr
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -28,9 +27,6 @@ from evaluation.metrics.bias_map import (
     add_bottom_numbers,
     area_weighted_mean_map,
     area_weighted_rmse_map,
-    # nice_bin_size,
-    # build_zero_bin_levels,
-    # symmetric_ticks_from_levels
 )
 
 from evaluation.metrics.individual_plots import (
@@ -49,28 +45,6 @@ def _validate_cfg(plot_cfg):
         raise ValueError(
             f"plots.diff_map_raw.time_stat must be 'raw', got: {stat}"
         )
-    
-
-# def _build_levels_and_ticks(vmin, vmax, target_bins, set_size_of_bins, ticks_everyX, keep_0_tick):
-#     if set_size_of_bins is None:
-#         bin_size = nice_bin_size(vmin, vmax, target_bins)
-#     else:
-#         bin_size = set_size_of_bins
-
-#     levels = build_zero_bin_levels(
-#         vmin=vmin,
-#         vmax=vmax,
-#         bin_size=bin_size,
-#     )
-#     norm = mpl.colors.CenteredNorm(vcenter=0)
-#     ticks = symmetric_ticks_from_levels(
-#         levels,
-#         vmin,
-#         vmax,
-#         ticks_everyX,
-#         keep_0_tick,
-#     )
-#     return levels, norm, ticks
 
 
 def run(cfg):
@@ -195,14 +169,6 @@ def run(cfg):
                         anomaly=False,
                         single_time=single_time,
                 )
-                # levels_model, norm_model, ticks_model = _build_levels_and_ticks(
-                #     vmin=vmin_model,
-                #     vmax=vmax_model,
-                #     target_bins=plot_cfg.target_bins,
-                #     set_size_of_bins=plot_cfg.set_size_of_bins,
-                #     ticks_everyX=plot_cfg.ticks_everyX_model,
-                #     keep_0_tick=plot_cfg.keep_0_tick_model,
-                # )
                 if plot_cfg.colourbar.use_custom_bins:
                     levels_model, ticks_model = _map_levels_and_ticks(vmin_model, vmax_model, plot_cfg.colourbar.ticks_everyX_model, plot_cfg.colourbar.keep_0_tick_model, plot_cfg)
                 else:
@@ -222,14 +188,6 @@ def run(cfg):
                     anomaly=False,
                     single_time=single_time,
                 )
-                # levels_diff, norm_diff, ticks_diff = _build_levels_and_ticks(
-                #     vmin=vmin_diff,
-                #     vmax=vmax_diff,
-                #     target_bins=plot_cfg.target_bins_diff,
-                #     set_size_of_bins=plot_cfg.set_size_of_bins_diff,
-                #     ticks_everyX=plot_cfg.ticks_everyX_diff,
-                #     keep_0_tick=plot_cfg.keep_0_tick_diff,
-                # )
                 if plot_cfg.colourbar.use_custom_bins:
                     levels_diff, ticks_diff = _map_levels_and_ticks(vmin_diff, vmax_diff,  plot_cfg.colourbar.ticks_everyX_diff, plot_cfg.colourbar.keep_0_tick_diff, plot_cfg)
                 else:
