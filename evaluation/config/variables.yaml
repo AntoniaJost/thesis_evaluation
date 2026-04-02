@@ -17,7 +17,7 @@ variables:
     wap: w
 
   meta:
-    hus: {long_name: "Specific Humidity", unit: "kg/kg"}
+    hus: {long_name: "Specific Humidity", unit: "kg kg-1"}
     psl: {long_name: "Mean Sea Level Pressure", unit: "Pa"}
     siconc: {long_name: "Sea-Ice Area Percentage", unit: "%"}
     ta:  {long_name: "Air Temperature", unit: "K"}
