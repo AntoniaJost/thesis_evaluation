@@ -720,7 +720,7 @@ def _map_levels_and_ticks(vmin: float, vmax: float, tick: int, tick_zero: bool, 
         levels = np.arange(vmin, vmax + bin_size, bin_size)
         if levels[-1] < vmax:
             levels = np.append(levels, vmax)
-        tick_every = int(tick)
+        tick_every = tick
         ticks = levels[::tick_every]
         if ticks[-1] != levels[-1]:
             ticks = np.append(ticks, levels[-1])
@@ -1332,7 +1332,7 @@ def run(cfg):
                         )
 
                     if plot_cfg.colourbar.use_custom_bins:
-                        levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg.colourbar, plot_cfg.colourbar.include_zero_tick, plot_cfg)
+                        levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg.colourbar.tick_every, plot_cfg.colourbar.include_zero_tick, plot_cfg)
                     else:
                         levels = np.linspace(vmin, vmax, 21)
                         ticks = None
