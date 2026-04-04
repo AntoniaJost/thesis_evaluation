@@ -15,7 +15,7 @@ The implemented functionality includes:
 - Zonal mean plots
 - Difference maps (Model − ERA5 or Model − Model)
 - Wind speed maps
-- Seasonal cycles
+- Seasonal cycles (either time mean (script `seasonal_cycle`) or individual lines for all years (script `yearly_cycle`))
 - Flexible custom plots (maps and time series for arbitrary combinations of variables, pressure levels, locations, timespans, and methods (out of those presented above))
 
 The system is fully controlled via Hydra, allowing flexible evaluation setups without modifying the code.
@@ -46,6 +46,7 @@ thesis_evaluation/
 │ │ ├─ seasonal_cycle.py
 │ │ ├─ soi.py
 │ │ ├─ wind.py
+│ │ ├─ yearly_cycle.py
 │ │ └─ zonal_mean.py
 │ │
 │ └─ config/
@@ -197,6 +198,7 @@ The following plot types provide a **general overview**:
 * `zonal_mean`
 * `wind`
 * `seasonal_cycle`
+* `yearly_cycle`
 
 Typical workflow:
 
@@ -258,6 +260,7 @@ outputs/
 ├─ seasonal_cycle/
 ├─ soi/
 ├─ wind/
+├─ yearly_cycle/
 └─ zonal_mean/
 ```
 
@@ -297,6 +300,7 @@ The difference between the "Difference Map" and the "Bias Map" (not optimal nami
 ## Seasonal Cycle
 
 ![Seasonal cycle](examples/seasonal_cycle_tas_sst0K_northern_full_19790101-20241231.png)
+![Yearly cycle](examples/yearly_cycle_tas_sst0K_mean_global_full_19790101-20241231_abs.png)
 
 ## Wind Speed Map
 

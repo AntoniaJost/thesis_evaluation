@@ -13,9 +13,10 @@ defaults:
   - plots@plots.zonal_mean: zonal_mean
   - plots@plots.wind: wind
   - plots@plots.seasonal_cycle: seasonal_cycle
+  - plots@plots.yearly_cycle: yearly_cycle
 
 # which plots to produce (must be names of REGISTRY in main.py)
-run_plots: ["global_mean", "anomalies", "bias_map", "diff_map_raw", "soi", "individual_plots", "zonal_mean", "wind", "seasonal_cycle"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots", "zonal_mean", "wind", "seasonal_cycle"]
+run_plots: ["global_mean", "anomalies", "bias_map", "diff_map_raw", "soi", "individual_plots", "zonal_mean", "wind", "seasonal_cycle", "yearly_cycle"] # options: "global_mean", "anomalies", "bias_map", "soi", "individual_plots", "zonal_mean", "wind", "seasonal_cycle"]
 
 # output behaviour
 out:
@@ -30,8 +31,8 @@ out:
 conversions: 
   ta:  {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}
   tas: {op: "sub", value: 273.15, applies_to: "both", unit: "°C"}
-  tos: {op: "sub", value: 273.15, applies_to: "era5", unit: "°C"}  
-  siconc: {op: "mul", value: 100, applies_to: "era5", unit: "%"}
+  tos: {op: "sub", value: 273.15, applies_to: "era5_natural", unit: "°C"}  
+  siconc: {op: "mul", value: 100, applies_to: "era5_natural", unit: "%"}
   zg: {op: "to_geopot_height", value: 9.81, applies_to: "both", unit: "m"}
 
 freq_map:
