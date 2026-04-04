@@ -2,7 +2,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from evaluation.general_functions import normalise_list
-from evaluation.metrics import global_mean, anomalies, bias_map, diff_map_raw, soi, individual_plots, zonal_mean, wind, seasonal_cycle
+from evaluation.metrics import global_mean, anomalies, bias_map, diff_map_raw, soi, individual_plots, zonal_mean, wind, seasonal_cycle, yearly_cycle
 
 REGISTRY = {
     "global_mean": global_mean.run,
@@ -13,7 +13,8 @@ REGISTRY = {
     "individual_plots": individual_plots.run,
     "zonal_mean": zonal_mean.run,
     "wind": wind.run,
-    "seasonal_cycle": seasonal_cycle.run
+    "seasonal_cycle": seasonal_cycle.run,
+    "yearly_cycle": yearly_cycle.run
 }
 
 @hydra.main(config_path="config", config_name="config", version_base="1.3")

@@ -12,13 +12,12 @@ from evaluation.general_functions import (
     ensure_allowed_var,
     iter_vars_and_plevs,
     open_model_da,
+    open_era5_da,  
     conversion_rules,
     should_compute_output,
     model_abbrev,
     ensemble_mean_as_member,
     plev_strings,
-    open_single_match,
-    select_plev_if_needed,
     normalise_list,
     format_unit_for_plot
 )
@@ -141,28 +140,6 @@ def _region_tag_and_label(plot_cfg) -> tuple[str, str]:
     tag = f"box_{lat0_tag}-{lat1_tag}_{lon0_tag}-{lon1_tag}"
     label = f"Box: {lat0_tag}-{lat1_tag}, {lon0_tag}-{lon1_tag}"
     return tag, label
-
-
-def _open_era5_daily_da(plot_cfg, var: str, start: str, end: str, plev=None) -> xr.DataArray:
-    """
-    ERA5 daily data loaded from Robert (cmorised), 
-    structure: {era5_path}/{var}/{grid}/{var}_day_*_gn_*.nc
-    """
-    pattern = os.path.join(
-        str(plot_cfg.era5_path),
-        var,
-        str(plot_cfg.grid),
-        f"{var}_day_*_gn_*.nc",
-    )
-    path = open_single_match(pattern)
-    ds = xr.open_dataset(path).sel(time=slice(start, end))
-
-    if var not in ds:
-        raise KeyError(f"Variable '{var}' not found in {path}. Available: {list(ds.data_vars)}")
-
-    da = ds[var]
-    da = select_plev_if_needed(da, var=var, plev=plev, context=path)
-    return da
 
 
 def _seasonal_climatology(series: xr.DataArray, season: str) -> pd.Series:
@@ -290,7 +267,7 @@ def run(cfg):
                 continue
             
             # ERA5
-            era5_da = _open_era5_daily_da(plot_cfg, var=var, start=start, end=end, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
+            era5_da = open_era5_da(cfg=cfg, var=var, start=start, end=end, plev=plev, freq=plot_cfg.freq, grid=plot_cfg.grid)
             era5_source = "era5_cmor" if plot_cfg.freq == "daily" else "era5_natural"
             era5_da, unit_here = conversion_rules(var, era5_da, cfg, era5_source, unit)
             era5_region = _subset_for_region(era5_da, plot_cfg)
