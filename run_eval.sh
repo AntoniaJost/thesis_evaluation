@@ -476,17 +476,17 @@ plots.wind.range_source.percentile=99
 # ---- SEASONAL CYCLE ----
 python -m evaluation.main \
   run_plots='["seasonal_cycle"]' \
-  out.overwrite=true \
-  plots.seasonal_cycle.variable='["uas"]' \
+  out.overwrite=ask \
+  plots.seasonal_cycle.variable='["tas"]' \
   plots.seasonal_cycle.plev='[50, 200, 500, 850]' \
   plots.seasonal_cycle.models='["forced_sst"]' \
   plots.seasonal_cycle.time.use_named=null \
   plots.seasonal_cycle.season='["full"]' \
-  plots.seasonal_cycle.region=arctic \
+  plots.seasonal_cycle.region=global \
   plots.seasonal_cycle.include_ensemble_mean_as_member=true \
   plots.seasonal_cycle.only_mean=true \
   plots.seasonal_cycle.legend.inside_plot=false \
-  plots.seasonal_cycle.special_outdir='test'
+  plots.seasonal_cycle.special_outdir='thesis'
 
 #   python -m evaluation.main \
 #   run_plots='["seasonal_cycle"]' \
@@ -515,6 +515,31 @@ python -m evaluation.main \
 #   plots.seasonal_cycle.only_mean=true \
 #   plots.seasonal_cycle.legend.inside_plot=false \
 #   plots.seasonal_cycle.special_outdir='thesis'
+
+# ---- SEASONAL CYCLE FOR ALL MODELS SEPARATELY (YEARLY CYCLE) ----
+python -m evaluation.main \
+  run_plots='["yearly_cycle"]' \
+  out.overwrite=ask \
+  plots.yearly_cycle.variable='["tas"]' \
+  plots.yearly_cycle.plev='[200, 300, 850]' \
+  plots.yearly_cycle.freq=monthly \
+  plots.yearly_cycle.models='["forced_sst"]' \
+  plots.yearly_cycle.time.use_named=null \
+  plots.yearly_cycle.season='["full"]' \
+  plots.yearly_cycle.include_ensemble_mean_as_member=true \
+  plots.yearly_cycle.only_mean=true \
+  plots.yearly_cycle.map_era5=true \
+  plots.yearly_cycle.region=individual \
+  plots.yearly_cycle.individual.lat0=-20\
+  plots.yearly_cycle.individual.lon0=-155 \
+  plots.yearly_cycle.individual.lat1=-10 \
+  plots.yearly_cycle.individual.lon1=145 \
+  plots.yearly_cycle.polar.min_latitude=60 \
+  plots.yearly_cycle.polar.max_latitude=-60 \
+  plots.yearly_cycle.anomaly=false \
+  plots.yearly_cycle.difference=false \
+  plots.yearly_cycle.legend.inside_plot=false \
+  plots.yearly_cycle.special_outdir='test'
 
 
 echo "ALL DONE."
