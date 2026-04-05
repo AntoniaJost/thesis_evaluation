@@ -277,6 +277,7 @@ def run(cfg):
                                     diff_stats[mem],
                                     rmse_stats[mem],
                                     unit_here,
+                                    decimals=plot_cfg.bottom_numbers_decimals,
                                 )
 
                 add_row_labels(axes, [proper_model_name, "ERA5", "Difference"])

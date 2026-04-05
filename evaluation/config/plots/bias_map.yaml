@@ -33,6 +33,7 @@ cbar_label_model: "Trend"
 cbar_label_diff: "Model - ERA5"
 
 add_numbers: true # calcs global RMSE and difference
+bottom_numbers_decimals: 2
 
 special_outdir: null # options: string after outputs/bias_map or null
 

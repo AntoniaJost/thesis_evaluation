@@ -89,9 +89,9 @@ def area_weighted_rmse_map(diff: xr.DataArray, lat_name: str = "lat", lon_name: 
     return float(np.sqrt(mse.values))
 
 
-def add_bottom_numbers(ax, diff_value: float, rmse_value: float, unit: str, fontsize: int = 8):
+def add_bottom_numbers(ax, diff_value: float, rmse_value: float, unit: str, fontsize: int = 8, decimals: int = 2):
     # add difference and RMSE as number below the panel
-    text = f"Diff: {diff_value:+.2f} | RMSE: {rmse_value:.2f} {unit}"
+    text = f"Diff: {diff_value:+.{decimals}f} | RMSE: {rmse_value:.{decimals}f} {unit}"
     ax.text(
         0.5,
         -0.14,
@@ -380,6 +380,7 @@ def run(cfg):
                                     diff_stats[mem],
                                     rmse_stats[mem],
                                     f"{unit_here}/dec",
+                                    decimals=plot_cfg.bottom_numbers_decimals,
                                 )
                 add_row_labels(axes, [proper_model_name, "ERA5", "Difference"])
                 # colourbars

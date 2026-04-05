@@ -37,6 +37,7 @@ cbar_label_model: null # e.g. "Field"; if null: uses var
 cbar_label_diff: "Model - ERA5"
 
 add_numbers: true # calcs global RMSE and difference
+bottom_numbers_decimals: 2
 
 detrend:
   enabled: false
