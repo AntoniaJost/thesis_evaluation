@@ -972,8 +972,9 @@ def _default_title(plot_cfg, method: str, long_name: str, proper_model_name: str
             lead += " (anomaly)"
         elif plot_cfg.anomaly and not plot_cfg.difference:
             lead += " anomaly"
-
-        title = f"{lead}: {long_name}{plev_title} | {member} | {time_label}"
+        
+        member_t = f" | {member}" if member else ""
+        title = f"{lead}: {long_name}{plev_title}{member_t} | {time_label}"
 
     else:
         if stat == "annual_mean" or stat == "trend":
