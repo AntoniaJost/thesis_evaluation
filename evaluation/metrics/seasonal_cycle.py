@@ -93,10 +93,10 @@ def _subset_for_region(da: xr.DataArray, plot_cfg) -> xr.DataArray:
         return _select_bbox(da, lat0, lat1, lon0, lon1)
 
     if region == "northern":
-        return da.sel(lat=_lat_slice(da, 0.0, 90.0))
+        return da.sel(lat=_lat_slice(da, 23.5, 90.0))
 
     if region == "southern":
-        return da.sel(lat=_lat_slice(da, -90.0, 0.0))
+        return da.sel(lat=_lat_slice(da, -90.0, -23.5))
 
     if region == "tropics":
         # fixed standard-ish tropical band (nördlicher bis südlicher Wendekreis)
@@ -119,9 +119,9 @@ def _region_tag_and_label(plot_cfg) -> tuple[str, str]:
     if region != "individual":
         label_map = {
             "global": "Global",
-            "northern": "Northern Hemisphere",
-            "southern": "Southern Hemisphere",
-            "tropics": "Tropics",
+            "northern": "23.5° N – 90° N",
+            "southern": "-90° S - -23.5° S",
+            "tropics": "-23.5° S – 23.5° N",
             "arctic": "Arctic",
             "antarctic": "Antarctic",
         }
