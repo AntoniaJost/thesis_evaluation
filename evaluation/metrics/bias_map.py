@@ -18,12 +18,14 @@ from evaluation.general_functions import (
     open_model_da,
     open_era5_da,
     ensemble_mean_as_member,
+    convert_bounds_with_rules,
     conversion_rules,
     should_compute_output,
     iter_vars_and_plevs,
     plev_strings,
     get_range_from_csv,
-    format_unit_for_plot
+    format_unit_for_plot,
+    custom_colour
 )
 
 
@@ -106,13 +108,15 @@ def add_bottom_numbers(ax, diff_value: float, rmse_value: float, unit: str, font
 
 def get_slope_range_from_csv(cfg, csv_file: str, var: str, plev: int | None):
     percentile = cfg.plots.bias_map.range_source.percentile
-    return get_range_from_csv(
+    vmin, vmax = get_range_from_csv(
         percentile=percentile,
         csv_file=csv_file,
         var=var,
         plev=plev,
         prefix="slope"
     )
+    vmin, vmax = convert_bounds_with_rules(vmin, vmax, var, cfg, source="model")
+    return vmin, vmax
 
 
 def nice_bin_size(vmin: float, vmax: float, target_bins: int = 12):
@@ -276,7 +280,7 @@ def run(cfg):
                 nrows = 3
 
                 # ---- colour settings from cfg, ranges from CSV; for model 
-                cmap_model = mpl.cm.get_cmap(plot_cfg.cmap_model)
+                cmap_model = custom_colour(plot_cfg.cmap_model)
                 csv_file_model = os.path.join(hydra.utils.get_original_cwd(), cfg.plots.bias_map.range_source.csv_file1)
                 vmin_model, vmax_model = get_slope_range_from_csv(cfg, csv_file_model, var, plev)
 

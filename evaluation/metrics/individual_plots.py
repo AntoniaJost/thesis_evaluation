@@ -17,6 +17,7 @@ from omegaconf import ListConfig
 
 from evaluation.general_functions import (
     get_range_from_csv,
+    convert_bounds_with_rules,
     conversion_rules,
     ensemble_mean_as_member,
     ensure_allowed_var,
@@ -27,7 +28,8 @@ from evaluation.general_functions import (
     plev_strings,
     should_compute_output,
     detrend_dataarray,
-    format_unit_for_plot
+    format_unit_for_plot,
+    custom_colour
 )
 from evaluation.metrics.global_mean import(annual_weighted_mean, lin_reg, trend_decay)
 from evaluation.metrics.anomalies import(to_anomaly)
@@ -647,10 +649,11 @@ def _get_map_bounds(cfg, plot_cfg, arrays: list[xr.DataArray], var: str, plev, d
                 plev=plev,
                 prefix=prefix,
             )
-            # if zg bounds come from the CSV, convert geopotential -> geopotential height
-            if str(var).strip().lower() == "zg":
-                vmin = float(vmin) / 9.81
-                vmax = float(vmax) / 9.81
+            # # if zg bounds come from the CSV, convert geopotential -> geopotential height
+            # if str(var).strip().lower() == "zg":
+            #     vmin = float(vmin) / 9.81
+            #     vmax = float(vmax) / 9.81
+            vmin, vmax = convert_bounds_with_rules(vmin, vmax, var, cfg, source="model")
 
             if difference:
                 # vmax_abs = max(abs(vmin), abs(vmax))
@@ -839,7 +842,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
             data_cyc,
             norm=_get_map_norm(plot_cfg, vmin, vmax), #mpl.colors.CenteredNorm(vcenter=0),
             levels=levels, #np.linspace(vmin, vmax, 21),
-            cmap=str(plot_cfg.colour_scheme) if not plot_cfg.difference else str(plot_cfg.diff_colour),
+            cmap=custom_colour(plot_cfg.colour_scheme) if not plot_cfg.difference else str(plot_cfg.diff_colour),
             extend="both",
             transform=ccrs.PlateCarree(),
         )
@@ -860,7 +863,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
             da.values,
             norm=_get_map_norm(plot_cfg, vmin, vmax), #mpl.colors.CenteredNorm(vcenter=0),
             levels=levels, #np.linspace(vmin, vmax, 21),
-            cmap=str(plot_cfg.colour_scheme) if not plot_cfg.difference else str(plot_cfg.diff_colour),
+            cmap=custom_colour(plot_cfg.colour_scheme) if not plot_cfg.difference else str(plot_cfg.diff_colour),
             extend="both",
             transform=ccrs.PlateCarree(),
         )
