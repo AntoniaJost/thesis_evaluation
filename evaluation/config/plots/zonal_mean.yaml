@@ -54,3 +54,5 @@ colourbar:
 anomaly: false # dummy but needed, don't change
 
 special_outdir: null # options: string after outputs/individual_plots/{method}/{var} or null
+
+convert_hus_bounds: false # only needed if using the currently uploaded plev_range tables (they lack conversion of hus to g/kg)
