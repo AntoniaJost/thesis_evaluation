@@ -18,7 +18,8 @@ from evaluation.general_functions import (
     should_compute_output,
     iter_vars_and_plevs,
     plev_strings,
-    format_unit_for_plot
+    format_unit_for_plot,
+    custom_colour
 )
 
 from evaluation.metrics.bias_map import (
@@ -155,7 +156,7 @@ def run(cfg):
                 nrows = 3
 
                 # colour settings for model / ERA5 rows
-                cmap_model = mpl.cm.get_cmap(plot_cfg.colourbar.cmap_model)
+                cmap_model = custom_colour(plot_cfg.colourbar.cmap_model)
                 if plot_cfg.colourbar.manual_vmin and plot_cfg.colourbar.manual_vmax:
                     vmin_model = float(plot_cfg.colourbar.manual_vmin)
                     vmax_model = float(plot_cfg.colourbar.manual_vmax)
@@ -178,7 +179,7 @@ def run(cfg):
                 norm_model = _get_map_norm(plot_cfg, vmin_model, vmax_model)
 
                 # colour settings for difference row
-                cmap_diff = mpl.cm.get_cmap(plot_cfg.colourbar.cmap_diff)
+                cmap_diff = custom_colour(plot_cfg.colourbar.cmap_diff)
                 vmin_diff, vmax_diff = _get_map_bounds(
                     cfg=cfg,
                     plot_cfg=plot_cfg,
@@ -277,6 +278,7 @@ def run(cfg):
                                     diff_stats[mem],
                                     rmse_stats[mem],
                                     unit_here,
+                                    decimals=plot_cfg.bottom_numbers_decimals,
                                 )
 
                 add_row_labels(axes, [proper_model_name, "ERA5", "Difference"])

@@ -10,7 +10,8 @@ import xarray as xr
 import pandas as pd
 import os
 from functools import lru_cache
-
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib as mpl
 
 def normalise_list(value):
     """
@@ -318,8 +319,8 @@ def conversion_rules(var: str, da: xr.DataArray, cfg, source: str, unit_default:
         return da * val, unit
     if op == "div":
         return da / val, unit
-    if op == "to_geopot_height":
-        return da / val, unit
+    # if op == "to_geopot_height":
+    #     return da / val, unit
     raise ValueError(f"Unknown conversion op: {op}")
 
 
@@ -466,6 +467,25 @@ def load_range_table(path): # caches csv
     return pd.read_csv(path)
 
 
+def convert_bounds_with_rules(
+    vmin: float,
+    vmax: float,
+    var: str,
+    cfg,
+    source: str = "model",
+    unit_default: str = "",
+) -> tuple[float, float]:
+    """
+    apply the same conversion_rules used for data to plotting bounds
+    for the case when CSV ranges were computed in native units but plots use converted units
+    """
+    if var in {"ta", "tas"}:
+        return float(vmin), float(vmax)
+    dummy = xr.DataArray([float(vmin), float(vmax)])
+    dummy_conv, _ = conversion_rules(var, dummy, cfg, source, unit_default)
+    return float(dummy_conv.values[0]), float(dummy_conv.values[1])
+
+
 def get_range_from_csv(percentile, csv_file: str, var: str, plev: int | None, prefix: str = "slope"):
     """
     reads min/max plotting range from CSV for a given variable and pressure level
@@ -557,3 +577,85 @@ def detrend_dataarray(da: xr.DataArray, dim: str = "time", start: str = "", end:
         detrended = da - trend_full
 
     return detrended
+
+
+def custom_colour(name: str):
+    """
+    return either a normal matplotlib cmap or a custom cmap
+    """
+    if name == "YlGnBu_white":
+        return LinearSegmentedColormap.from_list(
+            "YlGnBu_white",
+            [
+                "#b97800",
+                "#d08b00",
+                "#d99826",
+                "#e0ab3c",
+                "#e9bd52",
+                "#f1cf6d",
+                "#f6dd8a",
+                "#ecef98",
+                "#f3f7b2",
+                "#f9fdcc",
+                # white centre
+                "#ffffff",
+
+                "#b4e2b6",
+                "#85cfba",
+                "#5ac0c0",
+                "#39aec3",
+                "#2196c1",
+                "#2076b3",
+                "#2356a4",
+                "#233c98",
+                "#172978",
+                "#081c59",
+            ],
+            N=256,
+        )
+    elif name == "ygb_custom":
+        return LinearSegmentedColormap.from_list(
+            "ygb_custom",
+            [
+                "#ffffff",
+                "#f9fdcc",
+                "#edf8b3",
+                "#d6efb3",
+                "#b4e2b6",
+                "#85cfba",
+                "#5cc0c0",
+                "#39aec3",
+                "#2196c1",
+                "#2076b3",
+                "#2356a4",
+                "#233c99",
+                "#172978",
+                "#071d58",
+            ],
+            N=256,
+        )
+    elif name == "Spectral_wWhite":
+        return LinearSegmentedColormap.from_list(
+            "Spectral_wWhite",
+            [
+                "#5f4fa2",
+                "#3b7db7",
+                "#4199b6",
+                "#5ab4aa",
+                "#88d0a3",
+                "#b8e1a0",
+                "#e1f399",
+                "#ffffff", # white centre
+                "#fbdc89",
+                "#f9b96a",
+                "#f78b52",
+                "#ee6246",
+                "#d7414d",
+                "#b11748",
+                "#9e0342",
+
+            ],
+            N=256,
+        )
+    else:
+        return mpl.cm.get_cmap(name)

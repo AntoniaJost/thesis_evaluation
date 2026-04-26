@@ -24,7 +24,8 @@ from evaluation.general_functions import (
     normalise_list,
     normalise_plevs,
     accept_Pa_and_hPa,
-    format_unit_for_plot
+    format_unit_for_plot,
+    custom_colour
 )
 from evaluation.metrics.individual_plots import (
     _map_levels_and_ticks,
@@ -357,8 +358,8 @@ def _get_meta(cfg, var: str) -> tuple[str, str]:
     return long_name, unit
 
 
-def _get_cmap(plot_cfg) -> str:
-    return plot_cfg.cmap_difference if plot_cfg.difference else plot_cfg.cmap_absolute
+# def _get_cmap(plot_cfg) -> str:
+#     return plot_cfg.cmap_difference if plot_cfg.difference else plot_cfg.cmap_absolute
 
 
 def _get_zonal_vmin_vmax(cfg, plot_cfg, var: str):
@@ -420,6 +421,10 @@ def _get_zonal_vmin_vmax(cfg, plot_cfg, var: str):
 
     vmin = float(vmin)
     vmax = float(vmax)
+
+    if (getattr(plot_cfg, "convert_hus_bounds", False) and str(var).strip().lower() == "hus"):
+        vmin *= 1000.0
+        vmax *= 1000.0 
 
     if np.isclose(vmin, vmax):
         warnings.warn(
@@ -558,7 +563,7 @@ def _plot_single_panel_figure(da2d, title, long_name, unit, plot_cfg, start, end
     figsize = _resolve_figsize(plot_cfg, 1)
     fig, ax = plt.subplots(figsize=figsize)
 
-    cmap = _get_cmap(plot_cfg)
+    cmap = custom_colour(plot_cfg.cmap_absolute) if not plot_cfg.difference else str(plot_cfg.cmap_difference)
     mappable = _plot_panel(ax, da2d, title, cmap, plot_cfg, vmin=vmin, vmax=vmax, levels=levels, region=region_label)
 
     fig.suptitle(_make_suptitle(plot_cfg, long_name, unit, start, end, time_selection, region_label), y=0.96)
@@ -585,7 +590,7 @@ def _plot_panel_row(panels, long_name, unit, plot_cfg, start, end, time_selectio
     )
 
     axes_flat = axes.flatten()
-    cmap = _get_cmap(plot_cfg)
+    cmap = custom_colour(plot_cfg.cmap_absolute) if not plot_cfg.difference else str(plot_cfg.cmap_difference)
 
     mappable = None
     for i, (ax, (title, da2d)) in enumerate(zip(axes_flat, panels)):
@@ -672,7 +677,7 @@ def run(cfg):
 
             if vmin is not None and vmax is not None:
                 if plot_cfg.colourbar.use_custom_bins:
-                    levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg)
+                    levels, ticks = _map_levels_and_ticks(vmin, vmax, plot_cfg.colourbar.tick_every, plot_cfg.colourbar.include_zero_tick, plot_cfg)
                 else:
                     levels = np.linspace(vmin, vmax, 21)
                     ticks = None
