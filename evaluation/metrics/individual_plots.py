@@ -771,7 +771,7 @@ def _projection_and_extent(plot_cfg):
             if lon0 > lon1:
                 lon_max += 360.0
             extent = [lon_min, lon_max, min(float(plot_cfg.individual.lat0), float(plot_cfg.individual.lat1)), max(float(plot_cfg.individual.lat0), float(plot_cfg.individual.lat1))]
-        return ccrs.PlateCarree(), extent # plateCarree for standard map of just a section
+        return ccrs.PlateCarree(central_longitude=centre), extent # plateCarree for standard map of just a section
     if location == "arctic":
         return ccrs.NorthPolarStereo(), [-180, 180, float(plot_cfg.polar.min_latitude), 90] # arctic projection
     if location == "antarctic":
@@ -830,7 +830,7 @@ def _plot_single_map(ax, da: xr.DataArray, title: str, cfg, plot_cfg, vmin: floa
         }
         _draw_box(ax, regions["tahiti"], color="red")
         _draw_box(ax, regions["darwin"], color="blue")
-        ax.text(210, -16, "Tahiti", color="red", transform=ccrs.PlateCarree())
+        ax.text(210, -14, "Tahiti", color="red", transform=ccrs.PlateCarree())
         ax.text(130, -22, "Darwin", color="blue", transform=ccrs.PlateCarree())
 
     # for global and polar maps only: add cyclic point to avoid seam at 0/360°
