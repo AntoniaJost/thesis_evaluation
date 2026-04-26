@@ -116,7 +116,7 @@ I recommend starting with reviewing the following files:
 Make sure these settings match your data structure and analysis needs.
 
 If you are working on **Levante**, you can reuse my already regridded ERA5 data.
-The default evaluation periods in follow the **AIMIP guidelines**.
+The default evaluation periods in `periods.yaml` follow the **AIMIP guidelines**.
 
 Once those are set up, proceed to `config.yaml`.
 
